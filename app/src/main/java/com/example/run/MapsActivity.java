@@ -9,9 +9,12 @@ import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
+import android.widget.TextView;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.places.Places;
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -22,8 +25,11 @@ import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import java.util.Date;
+
 public class MapsActivity extends FragmentActivity
-        implements OnMapReadyCallback,
+        implements LocationListener,
+                OnMapReadyCallback,
                 GoogleApiClient.ConnectionCallbacks,
                 GoogleApiClient.OnConnectionFailedListener {
 
@@ -40,14 +46,20 @@ public class MapsActivity extends FragmentActivity
     private static final int DEFAULT_ZOOM = 18;
     private static final int PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1;
     private boolean mLocationPermissionGranted;
+    private boolean mRequestingLocationUpdates;
 
     // The geographical location where the device is currently located. That is, the last-known
     // location retrieved by the Fused Location Provider.
     private Location mLastKnownLocation;
 
+    private LocationRequest mLocationRequest;
+
     // Keys for storing activity state.
     private static final String KEY_CAMERA_POSITION = "camera_position";
     private static final String KEY_LOCATION = "location";
+
+    private Date mLastUpdateTime;
+    private TextView timeTextView, latitudeTextView, longitudeTextView, speedTextView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,6 +84,13 @@ public class MapsActivity extends FragmentActivity
                 //.addApi(Places.PLACE_DETECTION_API)
                 .build();
         mGoogleApiClient.connect();
+
+        mRequestingLocationUpdates = true;
+        mLastUpdateTime = new Date();
+        timeTextView = (TextView) findViewById(R.id.time);
+        latitudeTextView = (TextView) findViewById(R.id.latitude);
+        longitudeTextView = (TextView) findViewById(R.id.longitude);
+        speedTextView = (TextView) findViewById(R.id.speed);
     }
 
     /**
@@ -128,51 +147,79 @@ public class MapsActivity extends FragmentActivity
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-        
-        // Turn on the My Location layer and the related control on the map.
-        updateLocationUI();
 
-        getDeviceLocation();
+        initMapAndLocation();
+        updateInfo();
     }
 
-
-    /**
-     * Updates the map's UI settings based on whether the user has granted location permission.
-     */
-    private void updateLocationUI() {
-        if (mMap == null) {
-            return;
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           String permissions[], int[] grantResults) {
+        switch (requestCode) {
+            case PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION: {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    initMapAndLocation();
+                } else {
+                    // permission denied, boo! Disable the
+                    // functionality that depends on this permission.
+                }
+                return;
+            }
+            // other 'case' lines to check for other
+            // permissions this app might request
         }
+    }
 
-        /*
-         * Request location permission, so that we can get the location of the
-         * device. The result of the permission request is handled by a callback,
-         * onRequestPermissionsResult.
-         */
+    private void createLocationRequest() {
+        mLocationRequest = new LocationRequest();
+        mLocationRequest.setInterval(2000);
+        mLocationRequest.setFastestInterval(1000);
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+    }
+
+    protected void startLocationUpdates() {
         if (ContextCompat.checkSelfPermission(this.getApplicationContext(),
                 android.Manifest.permission.ACCESS_FINE_LOCATION)
                 == PackageManager.PERMISSION_GRANTED) {
-            mLocationPermissionGranted = true;
-        } else {
-            ActivityCompat.requestPermissions(this,
-                    new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION},
-                    PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION);
+            LocationServices.FusedLocationApi.requestLocationUpdates(
+                    mGoogleApiClient, mLocationRequest, this);
         }
+    }
 
-        if (mLocationPermissionGranted) {
-            mMap.setMyLocationEnabled(true);
-            mMap.getUiSettings().setMyLocationButtonEnabled(true);
-        } else {
-            mMap.setMyLocationEnabled(false);
-            mMap.getUiSettings().setMyLocationButtonEnabled(false);
-            mLastKnownLocation = null;
+    @Override
+    public void onLocationChanged(Location location) {
+        mLastKnownLocation = location;
+        updateInfo();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        stopLocationUpdates();
+    }
+
+    protected void stopLocationUpdates() {
+        LocationServices.FusedLocationApi.removeLocationUpdates(
+                mGoogleApiClient, this);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (mGoogleApiClient.isConnected() && !mRequestingLocationUpdates) {
+            startLocationUpdates();
         }
     }
 
     /**
      * Gets the current location of the device, and positions the map's camera.
      */
-    private void getDeviceLocation() {
+    private void initMapAndLocation() {
+        if (mMap == null) {
+            return;
+        }
         /*
          * Request location permission, so that we can get the location of the
          * device. The result of the permission request is handled by a callback,
@@ -182,6 +229,11 @@ public class MapsActivity extends FragmentActivity
                 android.Manifest.permission.ACCESS_FINE_LOCATION)
                 == PackageManager.PERMISSION_GRANTED) {
             mLocationPermissionGranted = true;
+
+            if (mRequestingLocationUpdates) {
+                createLocationRequest();
+                startLocationUpdates();
+            }
         } else {
             ActivityCompat.requestPermissions(this,
                     new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION},
@@ -194,11 +246,13 @@ public class MapsActivity extends FragmentActivity
         if (mLocationPermissionGranted) {
             mLastKnownLocation = LocationServices.FusedLocationApi
                     .getLastLocation(mGoogleApiClient);
-        }
 
-        if (mLastKnownLocation != null) {
-            float speed = mLastKnownLocation.getSpeed();
-            mMap.getUiSettings().setCompassEnabled(true);
+            mMap.setMyLocationEnabled(true);
+            mMap.getUiSettings().setMyLocationButtonEnabled(true);
+        } else {
+            mMap.setMyLocationEnabled(false);
+            mMap.getUiSettings().setMyLocationButtonEnabled(false);
+            mLastKnownLocation = null;
         }
 
         // Set the map's camera position to the current location of the device.
@@ -212,6 +266,16 @@ public class MapsActivity extends FragmentActivity
             Log.d(TAG, "Current location is null. Using defaults.");
             mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(mDefaultLocation, DEFAULT_ZOOM));
             mMap.getUiSettings().setMyLocationButtonEnabled(false);
+        }
+    }
+
+    private void updateInfo() {
+        if (mLastKnownLocation != null) {
+            mLastUpdateTime.setTime(mLastKnownLocation.getTime());
+            timeTextView.setText(mLastUpdateTime.toString());
+            latitudeTextView.setText(String.valueOf(mLastKnownLocation.getLatitude()));
+            longitudeTextView.setText(String.valueOf(mLastKnownLocation.getLongitude()));
+            speedTextView.setText(String.valueOf(mLastKnownLocation.getSpeed()));
         }
     }
 }

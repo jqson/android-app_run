@@ -1,4 +1,8 @@
 <resources>
     <string name="app_name">Run</string>
     <string name="title_activity_maps">Run</string>
+    <string name="latitude_num">latitude</string>
+    <string name="longitude_num">longitude</string>
+    <string name="speed_num">speed</string>
+    <string name="time_num">time</string>
 </resources>
