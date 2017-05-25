@@ -9,6 +9,7 @@ import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
+import android.view.WindowManager;
 import android.widget.TextView;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -72,6 +73,7 @@ public class MapsActivity extends FragmentActivity
         }
 
         setContentView(R.layout.activity_maps);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         // Build the Play services client for use by the Fused Location Provider and the Places API.
         // Use the addApi() method to request the Google Places API and the Fused Location Provider.
@@ -192,6 +194,7 @@ public class MapsActivity extends FragmentActivity
     public void onLocationChanged(Location location) {
         mLastKnownLocation = location;
         updateInfo();
+        centerMapOnCurLocation();
     }
 
     @Override
@@ -276,6 +279,14 @@ public class MapsActivity extends FragmentActivity
             latitudeTextView.setText(String.valueOf(mLastKnownLocation.getLatitude()));
             longitudeTextView.setText(String.valueOf(mLastKnownLocation.getLongitude()));
             speedTextView.setText(String.valueOf(mLastKnownLocation.getSpeed()));
+        }
+    }
+
+    private void centerMapOnCurLocation() {
+        if (mLastKnownLocation != null) {
+            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(
+                    new LatLng(mLastKnownLocation.getLatitude(),
+                            mLastKnownLocation.getLongitude()), DEFAULT_ZOOM));
         }
     }
 }
