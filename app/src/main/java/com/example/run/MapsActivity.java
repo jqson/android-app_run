@@ -25,8 +25,13 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
 
+import java.security.Policy;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 public class MapsActivity extends FragmentActivity
         implements LocationListener,
@@ -35,11 +40,18 @@ public class MapsActivity extends FragmentActivity
                 GoogleApiClient.OnConnectionFailedListener {
 
     private static final String TAG = MapsActivity.class.getSimpleName();
-    private GoogleMap mMap;
-    private CameraPosition mCameraPosition;
+
+    // Keys for storing activity state.
+    private static final String KEY_CAMERA_POSITION = "camera_position";
+    private static final String KEY_LOCATION = "location";
+
+    private static final int COLOR_RED_ARGB = 0xffff0000;
+    private static final int POLYLINE_WIDTH_PX = 10;
 
     // The entry point to Google Play services, used by the Places API and Fused Location Provider.
     private GoogleApiClient mGoogleApiClient;
+
+    private GoogleMap mMap;
 
     // A default location (Sydney, Australia) and default zoom to use when location permission is
     // not granted.
@@ -49,16 +61,20 @@ public class MapsActivity extends FragmentActivity
     private boolean mLocationPermissionGranted;
     private boolean mRequestingLocationUpdates;
 
+
     // The geographical location where the device is currently located. That is, the last-known
     // location retrieved by the Fused Location Provider.
     private Location mLastKnownLocation;
 
+    private CameraPosition mCameraPosition;
+
     private LocationRequest mLocationRequest;
 
-    // Keys for storing activity state.
-    private static final String KEY_CAMERA_POSITION = "camera_position";
-    private static final String KEY_LOCATION = "location";
+    private boolean mDrawPolyline;
+    List<LatLng> mPolylineVertex;
+    private Polyline mPolyline;
 
+    // information to be displayed
     private Date mLastUpdateTime;
     private TextView timeTextView, latitudeTextView, longitudeTextView, speedTextView;
 
@@ -191,8 +207,11 @@ public class MapsActivity extends FragmentActivity
     }
 
     @Override
-    public void onLocationChanged(Location location) {
-        mLastKnownLocation = location;
+    public void onLocationChanged(Location newLocation) {
+        mLastKnownLocation = newLocation;
+        if (mDrawPolyline) {
+            addToPolyline(mLastKnownLocation);
+        }
         updateInfo();
         centerMapOnCurLocation();
     }
@@ -236,6 +255,7 @@ public class MapsActivity extends FragmentActivity
             if (mRequestingLocationUpdates) {
                 createLocationRequest();
                 startLocationUpdates();
+                initPolyline();
             }
         } else {
             ActivityCompat.requestPermissions(this,
@@ -288,5 +308,19 @@ public class MapsActivity extends FragmentActivity
                     new LatLng(mLastKnownLocation.getLatitude(),
                             mLastKnownLocation.getLongitude()), DEFAULT_ZOOM));
         }
+    }
+
+    private void initPolyline() {
+        mDrawPolyline = true;
+        PolylineOptions polylineOpt = new PolylineOptions().width(POLYLINE_WIDTH_PX).color(COLOR_RED_ARGB);
+        mPolyline = mMap.addPolyline(polylineOpt);
+
+        mPolylineVertex = new ArrayList<LatLng>();
+        mPolyline.setPoints(mPolylineVertex);
+    }
+
+    private void addToPolyline(Location location) {
+        mPolylineVertex.add(new LatLng(location.getLatitude(), location.getLongitude()));
+        mPolyline.setPoints(mPolylineVertex);
     }
 }
