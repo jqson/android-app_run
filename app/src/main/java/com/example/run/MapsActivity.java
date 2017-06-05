@@ -9,6 +9,7 @@ import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
+import android.view.View;
 import android.view.WindowManager;
 import android.widget.TextView;
 
@@ -104,6 +105,8 @@ public class MapsActivity extends FragmentActivity
         mGoogleApiClient.connect();
 
         mRequestingLocationUpdates = true;
+        mDrawPolyline = false;
+
         mLastUpdateTime = new Date();
         timeTextView = (TextView) findViewById(R.id.time);
         latitudeTextView = (TextView) findViewById(R.id.latitude);
@@ -255,7 +258,6 @@ public class MapsActivity extends FragmentActivity
             if (mRequestingLocationUpdates) {
                 createLocationRequest();
                 startLocationUpdates();
-                initPolyline();
             }
         } else {
             ActivityCompat.requestPermissions(this,
@@ -311,7 +313,6 @@ public class MapsActivity extends FragmentActivity
     }
 
     private void initPolyline() {
-        mDrawPolyline = true;
         PolylineOptions polylineOpt = new PolylineOptions().width(POLYLINE_WIDTH_PX).color(COLOR_RED_ARGB);
         mPolyline = mMap.addPolyline(polylineOpt);
 
@@ -322,5 +323,16 @@ public class MapsActivity extends FragmentActivity
     private void addToPolyline(Location location) {
         mPolylineVertex.add(new LatLng(location.getLatitude(), location.getLongitude()));
         mPolyline.setPoints(mPolylineVertex);
+    }
+
+    public void startRun(View view) {
+        if (mLocationPermissionGranted && mRequestingLocationUpdates && !mDrawPolyline) {
+            mDrawPolyline = true;
+            initPolyline();
+        }
+    }
+
+    public void endRun(View view) {
+        mDrawPolyline = false;
     }
 }
