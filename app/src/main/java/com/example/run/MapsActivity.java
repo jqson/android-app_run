@@ -79,6 +79,15 @@ public class MapsActivity extends FragmentActivity
     private Date mLastUpdateTime;
     private TextView timeTextView, latitudeTextView, longitudeTextView, speedTextView;
 
+    private static final byte UNREADY = 0;
+    private static final byte READY = 1;
+    private static final byte RUNNING = 2;
+    private static final byte FINISH = 3;
+    private static final byte PAUSE = 4;
+    private byte mRunStatus;
+
+    private Date mStartTime;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -92,6 +101,16 @@ public class MapsActivity extends FragmentActivity
         setContentView(R.layout.activity_maps);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
+        mRunStatus = UNREADY;
+        mRequestingLocationUpdates = true;
+        mDrawPolyline = false;
+
+        mLastUpdateTime = new Date();
+        timeTextView = (TextView) findViewById(R.id.time);
+        latitudeTextView = (TextView) findViewById(R.id.latitude);
+        longitudeTextView = (TextView) findViewById(R.id.longitude);
+        speedTextView = (TextView) findViewById(R.id.speed);
+
         // Build the Play services client for use by the Fused Location Provider and the Places API.
         // Use the addApi() method to request the Google Places API and the Fused Location Provider.
         mGoogleApiClient = new GoogleApiClient.Builder(this)
@@ -103,15 +122,6 @@ public class MapsActivity extends FragmentActivity
                 //.addApi(Places.PLACE_DETECTION_API)
                 .build();
         mGoogleApiClient.connect();
-
-        mRequestingLocationUpdates = true;
-        mDrawPolyline = false;
-
-        mLastUpdateTime = new Date();
-        timeTextView = (TextView) findViewById(R.id.time);
-        latitudeTextView = (TextView) findViewById(R.id.latitude);
-        longitudeTextView = (TextView) findViewById(R.id.longitude);
-        speedTextView = (TextView) findViewById(R.id.speed);
     }
 
     /**
@@ -170,6 +180,7 @@ public class MapsActivity extends FragmentActivity
         mMap = googleMap;
 
         initMapAndLocation();
+        initInfo();
         updateInfo();
     }
 
@@ -195,7 +206,7 @@ public class MapsActivity extends FragmentActivity
 
     private void createLocationRequest() {
         mLocationRequest = new LocationRequest();
-        mLocationRequest.setInterval(2000);
+        mLocationRequest.setInterval(1000);
         mLocationRequest.setFastestInterval(1000);
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
     }
@@ -292,12 +303,28 @@ public class MapsActivity extends FragmentActivity
             mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(mDefaultLocation, DEFAULT_ZOOM));
             mMap.getUiSettings().setMyLocationButtonEnabled(false);
         }
+
+        if (mLocationPermissionGranted) {
+            mRunStatus = READY;
+        }
+    }
+
+    private void initInfo() {
+        timeTextView.setText("Run time in sec");
+        latitudeTextView.setText("Latitude");
+        longitudeTextView.setText("Longitude");
+        speedTextView.setText("Speed in m/s");
     }
 
     private void updateInfo() {
         if (mLastKnownLocation != null) {
             mLastUpdateTime.setTime(mLastKnownLocation.getTime());
-            timeTextView.setText(mLastUpdateTime.toString());
+
+            if (mRunStatus == RUNNING) {
+                int timeSec = (int) (mLastUpdateTime.getTime() - mStartTime.getTime()) / 1000;
+                timeTextView.setText(String.valueOf(timeSec));
+            }
+
             latitudeTextView.setText(String.valueOf(mLastKnownLocation.getLatitude()));
             longitudeTextView.setText(String.valueOf(mLastKnownLocation.getLongitude()));
             speedTextView.setText(String.valueOf(mLastKnownLocation.getSpeed()));
@@ -326,13 +353,19 @@ public class MapsActivity extends FragmentActivity
     }
 
     public void startRun(View view) {
-        if (mLocationPermissionGranted && mRequestingLocationUpdates && !mDrawPolyline) {
+        if (mRunStatus == READY) {
+            mStartTime = new Date();
+
             mDrawPolyline = true;
             initPolyline();
+            mRunStatus = RUNNING;
         }
     }
 
     public void endRun(View view) {
-        mDrawPolyline = false;
+        if (mRunStatus == RUNNING) {
+            mDrawPolyline = false;
+            mRunStatus = FINISH;
+        }
     }
 }
