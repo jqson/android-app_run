@@ -2,6 +2,7 @@ package com.example.run;
 
 import android.content.pm.PackageManager;
 import android.location.Location;
+import android.os.CountDownTimer;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
@@ -49,6 +50,9 @@ public class MapsActivity extends FragmentActivity
     private static final int COLOR_RED_ARGB = 0xffff0000;
     private static final int POLYLINE_WIDTH_PX = 10;
 
+    private static final long TIMMER_INTERVAL = 1000;
+    private static final long TIMMER_MAX = 3600000;
+
     // The entry point to Google Play services, used by the Places API and Fused Location Provider.
     private GoogleApiClient mGoogleApiClient;
 
@@ -87,6 +91,8 @@ public class MapsActivity extends FragmentActivity
     private byte mRunStatus;
 
     private Date mStartTime;
+    private short mRunTimeSec;
+    private CountDownTimer mCDTimer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -320,10 +326,12 @@ public class MapsActivity extends FragmentActivity
         if (mLastKnownLocation != null) {
             mLastUpdateTime.setTime(mLastKnownLocation.getTime());
 
+            /*
             if (mRunStatus == RUNNING) {
                 int timeSec = (int) (mLastUpdateTime.getTime() - mStartTime.getTime()) / 1000;
                 timeTextView.setText(String.valueOf(timeSec));
             }
+            */
 
             latitudeTextView.setText(String.valueOf(mLastKnownLocation.getLatitude()));
             longitudeTextView.setText(String.valueOf(mLastKnownLocation.getLongitude()));
@@ -356,6 +364,22 @@ public class MapsActivity extends FragmentActivity
         if (mRunStatus == READY) {
             mStartTime = new Date();
 
+            mRunTimeSec = 0;
+
+            mCDTimer = new CountDownTimer(TIMMER_MAX, TIMMER_INTERVAL) {
+                public void onTick(long millisUntilFinished) {
+                    mRunTimeSec = (short) ((TIMMER_MAX - millisUntilFinished) / 1000);
+                    timeTextView.setText(String.valueOf(mRunTimeSec));
+                }
+
+                public void onFinish() {
+                    timeTextView.setText("Out of time!");
+                }
+            };
+
+            mCDTimer.start();
+
+
             mDrawPolyline = true;
             initPolyline();
             mRunStatus = RUNNING;
@@ -364,8 +388,12 @@ public class MapsActivity extends FragmentActivity
 
     public void endRun(View view) {
         if (mRunStatus == RUNNING) {
+            mCDTimer.cancel();
+
             mDrawPolyline = false;
             mRunStatus = FINISH;
+
+            mRunStatus = READY;
         }
     }
 }
