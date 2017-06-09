@@ -50,9 +50,6 @@ public class MapsActivity extends FragmentActivity
     private static final int COLOR_RED_ARGB = 0xffff0000;
     private static final int POLYLINE_WIDTH_PX = 10;
 
-    private static final long TIMMER_INTERVAL = 1000;
-    private static final long TIMMER_MAX = 3600000;
-
     // The entry point to Google Play services, used by the Places API and Fused Location Provider.
     private GoogleApiClient mGoogleApiClient;
 
@@ -70,18 +67,19 @@ public class MapsActivity extends FragmentActivity
     // The geographical location where the device is currently located. That is, the last-known
     // location retrieved by the Fused Location Provider.
     private Location mLastKnownLocation;
+    private Location mPreLocation;
 
     private CameraPosition mCameraPosition;
 
+    private static final long LOCATION_REQUEST_INTERVAL = 1000;
+    private static final long LOCATION_REQUEST_MAX_INTERVAL = 1000;
     private LocationRequest mLocationRequest;
 
-    private boolean mDrawPolyline;
     List<LatLng> mPolylineVertex;
     private Polyline mPolyline;
 
     // information to be displayed
-    private Date mLastUpdateTime;
-    private TextView timeTextView, latitudeTextView, longitudeTextView, speedTextView;
+    private TextView timeTextView, distTextView, latitudeTextView, longitudeTextView, speedTextView;
 
     private static final byte UNREADY = 0;
     private static final byte READY = 1;
@@ -92,6 +90,10 @@ public class MapsActivity extends FragmentActivity
 
     private Date mStartTime;
     private short mRunTimeSec;
+    private float mRunDistance;
+
+    private static final long TIMMER_INTERVAL = 1000;
+    private static final long TIMMER_MAX = 3600000;
     private CountDownTimer mCDTimer;
 
     @Override
@@ -109,10 +111,9 @@ public class MapsActivity extends FragmentActivity
 
         mRunStatus = UNREADY;
         mRequestingLocationUpdates = true;
-        mDrawPolyline = false;
 
-        mLastUpdateTime = new Date();
         timeTextView = (TextView) findViewById(R.id.time);
+        distTextView = (TextView) findViewById(R.id.distance);
         latitudeTextView = (TextView) findViewById(R.id.latitude);
         longitudeTextView = (TextView) findViewById(R.id.longitude);
         speedTextView = (TextView) findViewById(R.id.speed);
@@ -187,7 +188,6 @@ public class MapsActivity extends FragmentActivity
 
         initMapAndLocation();
         initInfo();
-        updateInfo();
     }
 
     @Override
@@ -212,8 +212,8 @@ public class MapsActivity extends FragmentActivity
 
     private void createLocationRequest() {
         mLocationRequest = new LocationRequest();
-        mLocationRequest.setInterval(1000);
-        mLocationRequest.setFastestInterval(1000);
+        mLocationRequest.setInterval(LOCATION_REQUEST_INTERVAL);
+        mLocationRequest.setFastestInterval(LOCATION_REQUEST_MAX_INTERVAL);
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
     }
 
@@ -229,22 +229,21 @@ public class MapsActivity extends FragmentActivity
     @Override
     public void onLocationChanged(Location newLocation) {
         mLastKnownLocation = newLocation;
-        if (mDrawPolyline) {
-            addToPolyline(mLastKnownLocation);
-        }
-        updateInfo();
         centerMapOnCurLocation();
+        if (mRunStatus == UNREADY) {
+            mRunStatus = READY;
+        }
+    }
+
+    protected void stopLocationUpdates() {
+        LocationServices.FusedLocationApi.removeLocationUpdates(
+                mGoogleApiClient, this);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         stopLocationUpdates();
-    }
-
-    protected void stopLocationUpdates() {
-        LocationServices.FusedLocationApi.removeLocationUpdates(
-                mGoogleApiClient, this);
     }
 
     @Override
@@ -309,34 +308,22 @@ public class MapsActivity extends FragmentActivity
             mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(mDefaultLocation, DEFAULT_ZOOM));
             mMap.getUiSettings().setMyLocationButtonEnabled(false);
         }
-
-        if (mLocationPermissionGranted) {
-            mRunStatus = READY;
-        }
     }
 
     private void initInfo() {
         timeTextView.setText("Run time in sec");
+        distTextView.setText("Run distance in meter");
         latitudeTextView.setText("Latitude");
         longitudeTextView.setText("Longitude");
         speedTextView.setText("Speed in m/s");
     }
 
-    private void updateInfo() {
-        if (mLastKnownLocation != null) {
-            mLastUpdateTime.setTime(mLastKnownLocation.getTime());
-
-            /*
-            if (mRunStatus == RUNNING) {
-                int timeSec = (int) (mLastUpdateTime.getTime() - mStartTime.getTime()) / 1000;
-                timeTextView.setText(String.valueOf(timeSec));
-            }
-            */
-
-            latitudeTextView.setText(String.valueOf(mLastKnownLocation.getLatitude()));
-            longitudeTextView.setText(String.valueOf(mLastKnownLocation.getLongitude()));
-            speedTextView.setText(String.valueOf(mLastKnownLocation.getSpeed()));
-        }
+    private void updateDisplayInfo() {
+        timeTextView.setText(String.valueOf(mRunTimeSec));
+        distTextView.setText(String.valueOf(mRunDistance));
+        latitudeTextView.setText(String.valueOf(mLastKnownLocation.getLatitude()));
+        longitudeTextView.setText(String.valueOf(mLastKnownLocation.getLongitude()));
+        speedTextView.setText(String.valueOf(mLastKnownLocation.getSpeed()));
     }
 
     private void centerMapOnCurLocation() {
@@ -348,6 +335,10 @@ public class MapsActivity extends FragmentActivity
     }
 
     private void initPolyline() {
+        if (mPolyline != null) {
+            clearPolyline();
+        }
+
         PolylineOptions polylineOpt = new PolylineOptions().width(POLYLINE_WIDTH_PX).color(COLOR_RED_ARGB);
         mPolyline = mMap.addPolyline(polylineOpt);
 
@@ -360,16 +351,29 @@ public class MapsActivity extends FragmentActivity
         mPolyline.setPoints(mPolylineVertex);
     }
 
+    private void clearPolyline() {
+        mPolyline.remove();
+        mPolyline = null;
+    }
+
     public void startRun(View view) {
         if (mRunStatus == READY) {
             mStartTime = new Date();
 
+            initPolyline();
+
             mRunTimeSec = 0;
+            mRunDistance = 0.0f;
+            mPreLocation = mLastKnownLocation;
 
             mCDTimer = new CountDownTimer(TIMMER_MAX, TIMMER_INTERVAL) {
                 public void onTick(long millisUntilFinished) {
                     mRunTimeSec = (short) ((TIMMER_MAX - millisUntilFinished) / 1000);
-                    timeTextView.setText(String.valueOf(mRunTimeSec));
+                    mRunDistance += mPreLocation.distanceTo(mLastKnownLocation);
+                    mPreLocation = mLastKnownLocation;
+
+                    addToPolyline(mLastKnownLocation);
+                    updateDisplayInfo();
                 }
 
                 public void onFinish() {
@@ -378,10 +382,6 @@ public class MapsActivity extends FragmentActivity
             };
 
             mCDTimer.start();
-
-
-            mDrawPolyline = true;
-            initPolyline();
             mRunStatus = RUNNING;
         }
     }
@@ -390,7 +390,6 @@ public class MapsActivity extends FragmentActivity
         if (mRunStatus == RUNNING) {
             mCDTimer.cancel();
 
-            mDrawPolyline = false;
             mRunStatus = FINISH;
 
             mRunStatus = READY;
