@@ -1,5 +1,7 @@
 package com.example.run;
 
+import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.CountDownTimer;
@@ -9,6 +11,7 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
@@ -19,18 +22,18 @@ import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.location.places.Places;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 
-import java.security.Policy;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -41,6 +44,7 @@ public class MapsActivity extends FragmentActivity
                 GoogleApiClient.ConnectionCallbacks,
                 GoogleApiClient.OnConnectionFailedListener {
 
+    public static final String EXTRA_MESSAGE = "com.example.run.MESSAGE";
     private static final String TAG = MapsActivity.class.getSimpleName();
 
     // Keys for storing activity state.
@@ -92,9 +96,15 @@ public class MapsActivity extends FragmentActivity
     private short mRunTimeSec;
     private float mRunDistance;
 
+    // speed m/s less than this will be treat as GPS error
+    private static final float SPEED_ERR_THRESHOLD = 0.2f;
+
     private static final long TIMMER_INTERVAL = 1000;
     private static final long TIMMER_MAX = 3600000;
     private CountDownTimer mCDTimer;
+
+    // time s, latitude, longitude, distance to pre m (speed m/s), total distance m
+    private List<String> mRunData;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -229,7 +239,9 @@ public class MapsActivity extends FragmentActivity
     @Override
     public void onLocationChanged(Location newLocation) {
         mLastKnownLocation = newLocation;
-        centerMapOnCurLocation();
+        if (mRunStatus != FINISH) {
+            centerMapOnCurLocation();
+        }
         if (mRunStatus == UNREADY) {
             mRunStatus = READY;
         }
@@ -318,12 +330,12 @@ public class MapsActivity extends FragmentActivity
         speedTextView.setText("Speed in m/s");
     }
 
-    private void updateDisplayInfo() {
+    private void updateDisplayInfo(float newDist) {
         timeTextView.setText(String.valueOf(mRunTimeSec));
         distTextView.setText(String.valueOf(mRunDistance));
         latitudeTextView.setText(String.valueOf(mLastKnownLocation.getLatitude()));
         longitudeTextView.setText(String.valueOf(mLastKnownLocation.getLongitude()));
-        speedTextView.setText(String.valueOf(mLastKnownLocation.getSpeed()));
+        speedTextView.setText(String.valueOf(newDist));
     }
 
     private void centerMapOnCurLocation() {
@@ -342,7 +354,7 @@ public class MapsActivity extends FragmentActivity
         PolylineOptions polylineOpt = new PolylineOptions().width(POLYLINE_WIDTH_PX).color(COLOR_RED_ARGB);
         mPolyline = mMap.addPolyline(polylineOpt);
 
-        mPolylineVertex = new ArrayList<LatLng>();
+        mPolylineVertex = new ArrayList<>();
         mPolyline.setPoints(mPolylineVertex);
     }
 
@@ -360,6 +372,8 @@ public class MapsActivity extends FragmentActivity
         if (mRunStatus == READY) {
             mStartTime = new Date();
 
+            mRunData = new ArrayList<>();
+
             initPolyline();
 
             mRunTimeSec = 0;
@@ -369,11 +383,23 @@ public class MapsActivity extends FragmentActivity
             mCDTimer = new CountDownTimer(TIMMER_MAX, TIMMER_INTERVAL) {
                 public void onTick(long millisUntilFinished) {
                     mRunTimeSec = (short) ((TIMMER_MAX - millisUntilFinished) / 1000);
-                    mRunDistance += mPreLocation.distanceTo(mLastKnownLocation);
+                    float newDist = mPreLocation.distanceTo(mLastKnownLocation);
+                    if (newDist / (TIMMER_INTERVAL / 1000) < SPEED_ERR_THRESHOLD) {
+                        newDist = 0.0f;
+                    }
+                    mRunDistance += newDist;
                     mPreLocation = mLastKnownLocation;
 
                     addToPolyline(mLastKnownLocation);
-                    updateDisplayInfo();
+                    updateDisplayInfo(newDist);
+
+                    List<String> runData = new ArrayList<>();
+                    runData.add(String.valueOf(mRunTimeSec));
+                    runData.add(String.valueOf(mLastKnownLocation.getLatitude()));
+                    runData.add(String.valueOf(mLastKnownLocation.getLongitude()));
+                    runData.add(String.valueOf(newDist));
+                    runData.add(String.valueOf(mRunDistance));
+                    mRunData.add(TextUtils.join(",", runData));
                 }
 
                 public void onFinish() {
@@ -392,7 +418,43 @@ public class MapsActivity extends FragmentActivity
 
             mRunStatus = FINISH;
 
+            String filename = "sample.csv";
+
+            String fileText = "time,lat,lng,incDist,totalDist\n";
+            fileText += TextUtils.join("\n", mRunData);
+
+            OutputStreamWriter outputStreamWriter;
+
+            try {
+                outputStreamWriter  = new OutputStreamWriter(
+                        openFileOutput(filename, Context.MODE_PRIVATE));
+                outputStreamWriter.write(fileText);
+                outputStreamWriter .close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            moveCameraFitPolyline(mPolylineVertex);
+
+            showResult(filename);
+
             mRunStatus = READY;
         }
+    }
+
+    private void showResult(String filename) {
+        Intent intent = new Intent(this, DisplayRunResultActivity.class);
+        intent.putExtra(EXTRA_MESSAGE, filename);
+        startActivity(intent);
+    }
+
+    private void moveCameraFitPolyline(List<LatLng> mPolylineVertex) {
+        LatLngBounds.Builder builder = new LatLngBounds.Builder();
+        for (LatLng latLng : mPolylineVertex) {
+            builder.include(latLng);
+        }
+        LatLngBounds bounds = builder.build();
+
+        mMap.moveCamera(CameraUpdateFactory.newLatLngBounds(bounds, 20));
     }
 }
