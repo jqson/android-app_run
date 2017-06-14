@@ -1,6 +1,5 @@
 package com.example.run;
 
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
@@ -15,6 +14,7 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.TextView;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -32,8 +32,6 @@ import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 
-import java.io.FileOutputStream;
-import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -52,6 +50,7 @@ public class MapsActivity extends FragmentActivity
     private static final String KEY_LOCATION = "location";
 
     private static final int COLOR_RED_ARGB = 0xffff0000;
+    private static final int COLOR_BLUE_ARGB = 0xff0000ff;
     private static final int POLYLINE_WIDTH_PX = 10;
 
     // The entry point to Google Play services, used by the Places API and Fused Location Provider.
@@ -71,12 +70,11 @@ public class MapsActivity extends FragmentActivity
     // The geographical location where the device is currently located. That is, the last-known
     // location retrieved by the Fused Location Provider.
     private Location mLastKnownLocation;
-    private Location mPreLocation;
 
     private CameraPosition mCameraPosition;
 
-    private static final long LOCATION_REQUEST_INTERVAL = 1000;
-    private static final long LOCATION_REQUEST_MAX_INTERVAL = 1000;
+    private static final long LOCATION_REQUEST_INTERVAL = 2000;
+    private static final long LOCATION_REQUEST_FASTEST_INTERVAL = 1000;
     private LocationRequest mLocationRequest;
 
     List<LatLng> mPolylineVertex;
@@ -84,6 +82,7 @@ public class MapsActivity extends FragmentActivity
 
     // information to be displayed
     private TextView timeTextView, distTextView, latitudeTextView, longitudeTextView, speedTextView;
+    private Button startButton;
 
     private static final byte UNREADY = 0;
     private static final byte READY = 1;
@@ -93,18 +92,15 @@ public class MapsActivity extends FragmentActivity
     private byte mRunStatus;
 
     private Date mStartTime;
-    private short mRunTimeSec;
-    private float mRunDistance;
-
-    // speed m/s less than this will be treat as GPS error
-    private static final float SPEED_ERR_THRESHOLD = 0.2f;
+    private int mRunTimeSec;
 
     private static final long TIMMER_INTERVAL = 1000;
     private static final long TIMMER_MAX = 3600000;
     private CountDownTimer mCDTimer;
 
     // time s, latitude, longitude, distance to pre m (speed m/s), total distance m
-    private List<String> mRunData;
+    private DataManager mRunData;
+    private DataManager mGhostData;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -127,6 +123,8 @@ public class MapsActivity extends FragmentActivity
         latitudeTextView = (TextView) findViewById(R.id.latitude);
         longitudeTextView = (TextView) findViewById(R.id.longitude);
         speedTextView = (TextView) findViewById(R.id.speed);
+
+        startButton = (Button) findViewById(R.id.start_button);
 
         // Build the Play services client for use by the Fused Location Provider and the Places API.
         // Use the addApi() method to request the Google Places API and the Fused Location Provider.
@@ -198,6 +196,8 @@ public class MapsActivity extends FragmentActivity
 
         initMapAndLocation();
         initInfo();
+
+        loadRunHistory("sample2.csv");
     }
 
     @Override
@@ -223,7 +223,7 @@ public class MapsActivity extends FragmentActivity
     private void createLocationRequest() {
         mLocationRequest = new LocationRequest();
         mLocationRequest.setInterval(LOCATION_REQUEST_INTERVAL);
-        mLocationRequest.setFastestInterval(LOCATION_REQUEST_MAX_INTERVAL);
+        mLocationRequest.setFastestInterval(LOCATION_REQUEST_FASTEST_INTERVAL);
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
     }
 
@@ -239,11 +239,8 @@ public class MapsActivity extends FragmentActivity
     @Override
     public void onLocationChanged(Location newLocation) {
         mLastKnownLocation = newLocation;
-        if (mRunStatus != FINISH) {
+        if (mRunStatus == READY || mRunStatus == RUNNING) {
             centerMapOnCurLocation();
-        }
-        if (mRunStatus == UNREADY) {
-            mRunStatus = READY;
         }
     }
 
@@ -330,12 +327,12 @@ public class MapsActivity extends FragmentActivity
         speedTextView.setText("Speed in m/s");
     }
 
-    private void updateDisplayInfo(float newDist) {
+    private void updateDisplayInfo(float speed) {
         timeTextView.setText(String.valueOf(mRunTimeSec));
-        distTextView.setText(String.valueOf(mRunDistance));
+        distTextView.setText(String.valueOf(mRunData.getDistance()));
         latitudeTextView.setText(String.valueOf(mLastKnownLocation.getLatitude()));
         longitudeTextView.setText(String.valueOf(mLastKnownLocation.getLongitude()));
-        speedTextView.setText(String.valueOf(newDist));
+        speedTextView.setText(String.valueOf(speed));
     }
 
     private void centerMapOnCurLocation() {
@@ -351,7 +348,9 @@ public class MapsActivity extends FragmentActivity
             clearPolyline();
         }
 
-        PolylineOptions polylineOpt = new PolylineOptions().width(POLYLINE_WIDTH_PX).color(COLOR_RED_ARGB);
+        PolylineOptions polylineOpt = new PolylineOptions()
+                .width(POLYLINE_WIDTH_PX)
+                .color(COLOR_RED_ARGB);
         mPolyline = mMap.addPolyline(polylineOpt);
 
         mPolylineVertex = new ArrayList<>();
@@ -369,37 +368,31 @@ public class MapsActivity extends FragmentActivity
     }
 
     public void startRun(View view) {
+        if ((mRunStatus == UNREADY || mRunStatus == FINISH) && mLastKnownLocation != null) {
+            mRunStatus = READY;
+            // TODO
+            startButton.setText(R.string.start_button_text);
+            return;
+        }
+
         if (mRunStatus == READY) {
             mStartTime = new Date();
 
-            mRunData = new ArrayList<>();
+            mRunData = new DataManager(this);
 
             initPolyline();
 
             mRunTimeSec = 0;
-            mRunDistance = 0.0f;
-            mPreLocation = mLastKnownLocation;
 
             mCDTimer = new CountDownTimer(TIMMER_MAX, TIMMER_INTERVAL) {
                 public void onTick(long millisUntilFinished) {
-                    mRunTimeSec = (short) ((TIMMER_MAX - millisUntilFinished) / 1000);
-                    float newDist = mPreLocation.distanceTo(mLastKnownLocation);
-                    if (newDist / (TIMMER_INTERVAL / 1000) < SPEED_ERR_THRESHOLD) {
-                        newDist = 0.0f;
-                    }
-                    mRunDistance += newDist;
-                    mPreLocation = mLastKnownLocation;
+                    mRunTimeSec = (int) ((TIMMER_MAX - millisUntilFinished) / 1000);
+
+                    float speed = mRunData.addPoint(mRunTimeSec, mLastKnownLocation);
+
+                    updateDisplayInfo(speed);
 
                     addToPolyline(mLastKnownLocation);
-                    updateDisplayInfo(newDist);
-
-                    List<String> runData = new ArrayList<>();
-                    runData.add(String.valueOf(mRunTimeSec));
-                    runData.add(String.valueOf(mLastKnownLocation.getLatitude()));
-                    runData.add(String.valueOf(mLastKnownLocation.getLongitude()));
-                    runData.add(String.valueOf(newDist));
-                    runData.add(String.valueOf(mRunDistance));
-                    mRunData.add(TextUtils.join(",", runData));
                 }
 
                 public void onFinish() {
@@ -412,33 +405,24 @@ public class MapsActivity extends FragmentActivity
         }
     }
 
+    // TODO: change START/END to one single button
     public void endRun(View view) {
         if (mRunStatus == RUNNING) {
             mCDTimer.cancel();
 
             mRunStatus = FINISH;
 
-            String filename = "sample.csv";
+            String filename = "sample1.csv";
 
-            String fileText = "time,lat,lng,incDist,totalDist\n";
-            fileText += TextUtils.join("\n", mRunData);
+            mRunData.saveToFile(filename);
 
-            OutputStreamWriter outputStreamWriter;
-
-            try {
-                outputStreamWriter  = new OutputStreamWriter(
-                        openFileOutput(filename, Context.MODE_PRIVATE));
-                outputStreamWriter.write(fileText);
-                outputStreamWriter .close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
+            // TODO show final polyline based on mRunData
             moveCameraFitPolyline(mPolylineVertex);
 
             showResult(filename);
-
-            mRunStatus = READY;
+            
+            // TODO
+            startButton.setText(R.string.ready_button_text);
         }
     }
 
@@ -455,6 +439,19 @@ public class MapsActivity extends FragmentActivity
         }
         LatLngBounds bounds = builder.build();
 
-        mMap.moveCamera(CameraUpdateFactory.newLatLngBounds(bounds, 20));
+        mMap.moveCamera(CameraUpdateFactory.newLatLngBounds(bounds, 60));
+    }
+
+    private void loadRunHistory(String filename) {
+        DataManager history = new DataManager(this);
+        history.loadFromFile(filename);
+        List<LatLng> historyLatLngList = history.getLatLngList();
+
+        PolylineOptions polylineOpt = new PolylineOptions()
+                .width(POLYLINE_WIDTH_PX)
+                .color(COLOR_BLUE_ARGB);
+        Polyline gPolyline = mMap.addPolyline(polylineOpt);
+        gPolyline.setPoints(historyLatLngList);
+        moveCameraFitPolyline(historyLatLngList);
     }
 }
