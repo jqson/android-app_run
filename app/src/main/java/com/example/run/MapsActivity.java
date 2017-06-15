@@ -26,9 +26,12 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 
@@ -48,10 +51,6 @@ public class MapsActivity extends FragmentActivity
     // Keys for storing activity state.
     private static final String KEY_CAMERA_POSITION = "camera_position";
     private static final String KEY_LOCATION = "location";
-
-    private static final int COLOR_RED_ARGB = 0xffff0000;
-    private static final int COLOR_BLUE_ARGB = 0xff0000ff;
-    private static final int POLYLINE_WIDTH_PX = 10;
 
     // The entry point to Google Play services, used by the Places API and Fused Location Provider.
     private GoogleApiClient mGoogleApiClient;
@@ -80,9 +79,15 @@ public class MapsActivity extends FragmentActivity
     List<LatLng> mPolylineVertex;
     private Polyline mPolyline;
 
+    private static final int COLOR_RED_ARGB = 0xffff0000;
+    private static final int COLOR_BLUE_ARGB = 0xff0000ff;
+    private static final int POLYLINE_WIDTH_PX = 10;
+
     // information to be displayed
     private TextView timeTextView, distTextView, latitudeTextView, longitudeTextView, speedTextView;
     private Button startButton;
+
+    private TextView ghostTextView;
 
     private static final byte UNREADY = 0;
     private static final byte READY = 1;
@@ -99,8 +104,14 @@ public class MapsActivity extends FragmentActivity
     private CountDownTimer mCDTimer;
 
     // time s, latitude, longitude, distance to pre m (speed m/s), total distance m
-    private DataManager mRunData;
-    private DataManager mGhostData;
+    private RunnerDataManager mRunnerData;
+    private GhostDataManager mGhostData;
+
+    private Marker mRunnerMarker;
+    private Marker mGhostMarker;
+
+    private static final float RUNNER_MARKER_COLOR = BitmapDescriptorFactory.HUE_RED;
+    private static final float GHOST_MARKER_COLOR = BitmapDescriptorFactory.HUE_BLUE;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -123,6 +134,8 @@ public class MapsActivity extends FragmentActivity
         latitudeTextView = (TextView) findViewById(R.id.latitude);
         longitudeTextView = (TextView) findViewById(R.id.longitude);
         speedTextView = (TextView) findViewById(R.id.speed);
+
+        ghostTextView = (TextView) findViewById(R.id.ghost);
 
         startButton = (Button) findViewById(R.id.start_button);
 
@@ -197,7 +210,7 @@ public class MapsActivity extends FragmentActivity
         initMapAndLocation();
         initInfo();
 
-        loadRunHistory("sample2.csv");
+        loadRunHistory("sample1.csv");
     }
 
     @Override
@@ -329,7 +342,7 @@ public class MapsActivity extends FragmentActivity
 
     private void updateDisplayInfo(float speed) {
         timeTextView.setText(String.valueOf(mRunTimeSec));
-        distTextView.setText(String.valueOf(mRunData.getDistance()));
+        distTextView.setText(String.valueOf(mRunnerData.getDistance()));
         latitudeTextView.setText(String.valueOf(mLastKnownLocation.getLatitude()));
         longitudeTextView.setText(String.valueOf(mLastKnownLocation.getLongitude()));
         speedTextView.setText(String.valueOf(speed));
@@ -372,13 +385,15 @@ public class MapsActivity extends FragmentActivity
             mRunStatus = READY;
             // TODO
             startButton.setText(R.string.start_button_text);
+            mGhostData.reset();
+            setGhostMarker(mGhostData.getLatLng());
             return;
         }
 
         if (mRunStatus == READY) {
             mStartTime = new Date();
 
-            mRunData = new DataManager(this);
+            mRunnerData = new RunnerDataManager(this);
 
             initPolyline();
 
@@ -388,11 +403,14 @@ public class MapsActivity extends FragmentActivity
                 public void onTick(long millisUntilFinished) {
                     mRunTimeSec = (int) ((TIMMER_MAX - millisUntilFinished) / 1000);
 
-                    float speed = mRunData.addPoint(mRunTimeSec, mLastKnownLocation);
-
+                    float speed = mRunnerData.addPoint(mRunTimeSec, mLastKnownLocation);
                     updateDisplayInfo(speed);
-
                     addToPolyline(mLastKnownLocation);
+
+                    mGhostData.setRunTime(mRunTimeSec);
+                    setGhostMarker(mGhostData.getLatLng());
+                    ghostTextView.setText(String.valueOf(
+                            mRunnerData.getDistance() - mGhostData.getDistance()));
                 }
 
                 public void onFinish() {
@@ -412,15 +430,15 @@ public class MapsActivity extends FragmentActivity
 
             mRunStatus = FINISH;
 
-            String filename = "sample1.csv";
+            String filename = "sample2.csv";
 
-            mRunData.saveToFile(filename);
+            mRunnerData.saveToFile(filename);
 
             // TODO show final polyline based on mRunData
             moveCameraFitPolyline(mPolylineVertex);
 
-            showResult(filename);
-            
+            //showResult(filename);
+
             // TODO
             startButton.setText(R.string.ready_button_text);
         }
@@ -443,9 +461,9 @@ public class MapsActivity extends FragmentActivity
     }
 
     private void loadRunHistory(String filename) {
-        DataManager history = new DataManager(this);
-        history.loadFromFile(filename);
-        List<LatLng> historyLatLngList = history.getLatLngList();
+        mGhostData = new GhostDataManager(this);
+        mGhostData.loadFromFile(filename);
+        List<LatLng> historyLatLngList = mGhostData.getLatLngList();
 
         PolylineOptions polylineOpt = new PolylineOptions()
                 .width(POLYLINE_WIDTH_PX)
@@ -453,5 +471,16 @@ public class MapsActivity extends FragmentActivity
         Polyline gPolyline = mMap.addPolyline(polylineOpt);
         gPolyline.setPoints(historyLatLngList);
         moveCameraFitPolyline(historyLatLngList);
+
+        setGhostMarker(mGhostData.getLatLng());
+    }
+
+    private void setGhostMarker(LatLng position) {
+        if (mGhostMarker != null) {
+            mGhostMarker.remove();
+        }
+        mGhostMarker = mMap.addMarker(new MarkerOptions()
+                .position(position)
+                .icon(BitmapDescriptorFactory.defaultMarker(GHOST_MARKER_COLOR)));
     }
 }

@@ -1,8 +1,6 @@
 package com.example.run;
 
 import android.content.Context;
-import android.location.Location;
-import android.provider.ContactsContract;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -22,79 +20,32 @@ import java.util.List;
  */
 
 class DataManager {
-    // speed m/s less than this will be treat as GPS error
-    private static final float SPEED_THRESHOLD = 0.2f;
-
-    private class DataPoint {
+    class DataPoint {
         int timeSec;
         double latitude;
         double longitude;
         float speed;
         float distance;
 
-        private DataPoint(int time, double lat, double lng, float speed, float distance) {
+        DataPoint(int time, double lat, double lng, float speed, float distance) {
             this.timeSec = time;
             this.latitude = lat;
             this.longitude = lng;
             this.speed = speed;
             this.distance = distance;
         }
-
-
     }
 
-    private List<DataPoint> dataPointList;
-    private Location preLocation;
+    List<DataPoint> dataPointList;
 
     private Context context;
 
-    public DataManager(Context context) {
+    DataManager(Context context) {
         this.context = context;
         dataPointList = new ArrayList<>();
     }
 
-    // return speed in m/s
-    public float addPoint(int timeSec, Location location) {
-        float speed = 0.0f;
-        if (dataPointList.size() == 0) {
-            DataPoint newData = new DataPoint(
-                    timeSec,
-                    location.getLatitude(),
-                    location.getLongitude(),
-                    0.0f,
-                    0.0f);
-            dataPointList.add(newData);
-            preLocation = location;
-        } else if (location == preLocation) {
-            speed = dataPointList.get(dataPointList.size() - 1).speed;
-        } else {
-            float distToPre = location.distanceTo(preLocation);
-            int timeToPre = timeSec - dataPointList.get(dataPointList.size() - 1).timeSec;
-            speed = distToPre / timeToPre;
-            if (speed > SPEED_THRESHOLD) {
-                DataPoint newData = new DataPoint(
-                        timeSec,
-                        location.getLatitude(),
-                        location.getLongitude(),
-                        speed,
-                        dataPointList.get(dataPointList.size() - 1).distance + distToPre);
-                dataPointList.add(newData);
-                preLocation = location;
-            }
-        }
-
-        return speed;
-    }
-
-    public float getDistance() {
-        if (dataPointList.size() == 0) {
-            return 0.0f;
-        } else {
-            return dataPointList.get(dataPointList.size() - 1).distance;
-        }
-    }
-
-    public List<LatLng> getLatLngList() {
+    List<LatLng> getLatLngList() {
         List<LatLng> latLngList = new ArrayList<>();
         for (DataPoint dp : dataPointList) {
             latLngList.add(new LatLng(dp.latitude, dp.longitude));
@@ -102,7 +53,7 @@ class DataManager {
         return latLngList;
     }
 
-    public boolean loadFromFile(String filename) {
+    boolean loadFromFile(String filename) {
         String dataString = readFile(filename, context);
         if (dataString == null || dataString.length() == 0) {
             return false;
@@ -121,7 +72,7 @@ class DataManager {
         return true;
     }
 
-    public void saveToFile(String filename) {
+    void saveToFile(String filename) {
         StringBuilder fileDataBuilder = new StringBuilder();
         fileDataBuilder.append("time,lat,lng,incDist,totalDist\n");
 
@@ -139,7 +90,7 @@ class DataManager {
         writeFile(filename, fileDataBuilder.toString(), context);
     }
 
-    public static void writeFile(String filename, String data, Context context) {
+    private static void writeFile(String filename, String data, Context context) {
         try {
             OutputStreamWriter outputStreamWriter = new OutputStreamWriter(context.openFileOutput(filename, Context.MODE_PRIVATE));
             outputStreamWriter.write(data);
@@ -150,7 +101,7 @@ class DataManager {
         }
     }
 
-    public static String readFile(String filename, Context context) {
+    private static String readFile(String filename, Context context) {
         String fileData = "";
 
         try {
@@ -159,7 +110,7 @@ class DataManager {
             if ( inputStream != null ) {
                 InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
                 BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
-                String receiveString = "";
+                String receiveString;
                 StringBuilder stringBuilder = new StringBuilder();
 
                 while ( (receiveString = bufferedReader.readLine()) != null ) {

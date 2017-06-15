@@ -29,6 +29,14 @@
             android:textSize="24sp" />
 
         <TextView
+            android:id="@+id/speed"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/speed_num"
+            android:textAlignment="center"
+            android:textSize="18sp" />
+
+        <TextView
             android:id="@+id/latitude"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -43,13 +51,13 @@
             android:text="@string/longitude_num"
             android:textAlignment="center"
             android:textSize="18sp" />
+
         <TextView
-            android:id="@+id/speed"
+            android:id="@+id/ghost"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/speed_num"
             android:textAlignment="center"
-            android:textSize="18sp" />
+            android:textSize="24sp" />
     </LinearLayout>
 
     <fragment
