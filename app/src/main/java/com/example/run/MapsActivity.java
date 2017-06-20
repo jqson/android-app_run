@@ -10,7 +10,6 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
-import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
@@ -107,6 +106,8 @@ public class MapsActivity extends FragmentActivity
     private RunnerDataManager mRunnerData;
     private GhostDataManager mGhostData;
 
+    private String mGhostFilename;
+
     private Marker mRunnerMarker;
     private Marker mGhostMarker;
 
@@ -116,6 +117,7 @@ public class MapsActivity extends FragmentActivity
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
 
         // Retrieve location and camera position from saved instance state.
         if (savedInstanceState != null) {
@@ -210,7 +212,9 @@ public class MapsActivity extends FragmentActivity
         initMapAndLocation();
         initInfo();
 
-        loadRunHistory("sample1.csv");
+        Intent intent = getIntent();
+        mGhostFilename = intent.getStringExtra(EXTRA_MESSAGE);
+        loadRunHistory(mGhostFilename);
     }
 
     @Override
@@ -430,12 +434,11 @@ public class MapsActivity extends FragmentActivity
 
             mRunStatus = FINISH;
 
-            String filename = "sample2.csv";
-
-            mRunnerData.saveToFile(filename);
-
             // TODO show final polyline based on mRunData
             moveCameraFitPolyline(mPolylineVertex);
+
+            String filename = "sample5.csv";
+            mRunnerData.saveToFile(filename);
 
             //showResult(filename);
 

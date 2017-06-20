@@ -16,15 +16,12 @@ public class DisplayRunResultActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_display_run_result);
 
-        /*
         Intent intent = getIntent();
         String filename = intent.getStringExtra(MapsActivity.EXTRA_MESSAGE);
 
         String resultText = DataManager.readFile(filename, this);
-        */
-        File file = getFilesDir();
 
         TextView textView = (TextView) findViewById(R.id.textView);
-        textView.setText(TextUtils.join("\n", file.list()));
+        textView.setText(resultText);
     }
 }

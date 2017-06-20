@@ -74,7 +74,7 @@ class DataManager {
 
     void saveToFile(String filename) {
         StringBuilder fileDataBuilder = new StringBuilder();
-        fileDataBuilder.append("time,lat,lng,incDist,totalDist\n");
+        fileDataBuilder.append("time,lat,lng,speed,totalDist\n");
 
         for (DataPoint dp : dataPointList) {
             List<String> runData = new ArrayList<>();
@@ -101,7 +101,7 @@ class DataManager {
         }
     }
 
-    private static String readFile(String filename, Context context) {
+    static String readFile(String filename, Context context) {
         String fileData = "";
 
         try {
