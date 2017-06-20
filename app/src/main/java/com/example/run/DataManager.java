@@ -90,7 +90,7 @@ class DataManager {
         writeFile(filename, fileDataBuilder.toString(), context);
     }
 
-    private static void writeFile(String filename, String data, Context context) {
+    static void writeFile(String filename, String data, Context context) {
         try {
             OutputStreamWriter outputStreamWriter = new OutputStreamWriter(context.openFileOutput(filename, Context.MODE_PRIVATE));
             outputStreamWriter.write(data);

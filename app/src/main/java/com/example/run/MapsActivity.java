@@ -106,6 +106,7 @@ public class MapsActivity extends FragmentActivity
     private RunnerDataManager mRunnerData;
     private GhostDataManager mGhostData;
 
+    private String mRunnerFilename;
     private String mGhostFilename;
 
     private Marker mRunnerMarker;
@@ -397,6 +398,8 @@ public class MapsActivity extends FragmentActivity
         if (mRunStatus == READY) {
             mStartTime = new Date();
 
+            mRunnerFilename = String.valueOf(mStartTime.getTime()) + ".csv";
+
             mRunnerData = new RunnerDataManager(this);
 
             initPolyline();
@@ -437,8 +440,8 @@ public class MapsActivity extends FragmentActivity
             // TODO show final polyline based on mRunData
             moveCameraFitPolyline(mPolylineVertex);
 
-            String filename = "sample5.csv";
-            mRunnerData.saveToFile(filename);
+            mRunnerData.saveToFile(mRunnerFilename);
+            addToHistoryFile();
 
             //showResult(filename);
 
@@ -475,6 +478,9 @@ public class MapsActivity extends FragmentActivity
         gPolyline.setPoints(historyLatLngList);
         moveCameraFitPolyline(historyLatLngList);
 
+        timeTextView.setText(String.valueOf(mGhostData.getTotalTime()));
+        distTextView.setText(String.valueOf(mGhostData.getTotalDistance()));
+
         setGhostMarker(mGhostData.getLatLng());
     }
 
@@ -485,5 +491,17 @@ public class MapsActivity extends FragmentActivity
         mGhostMarker = mMap.addMarker(new MarkerOptions()
                 .position(position)
                 .icon(BitmapDescriptorFactory.defaultMarker(GHOST_MARKER_COLOR)));
+    }
+
+    // TODO immigrate to database
+    private void addToHistoryFile() {
+        // "filename,dateMs,time,dist\n";
+        String newFileInfo = mRunnerFilename + "," +
+                String.valueOf(mStartTime.getTime()) + "," +
+                String.valueOf(mRunnerData.getTime()) + "," +
+                String.valueOf(mRunnerData.getDistance()) + "\n";
+
+        String orgFileText = DataManager.readFile(HistoryActivity.HISTORY_FILENAME, this);
+        DataManager.writeFile(HistoryActivity.HISTORY_FILENAME, orgFileText + newFileInfo, this);
     }
 }

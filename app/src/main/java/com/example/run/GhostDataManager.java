@@ -10,6 +10,7 @@ import com.google.android.gms.maps.model.LatLng;
 
 class GhostDataManager extends DataManager {
     private int totalTime;
+    private float totalDistance;
 
     private int curTime;
     private int curDataPointIdx;
@@ -26,6 +27,7 @@ class GhostDataManager extends DataManager {
         }
 
         totalTime = dataPointList.get(dataPointList.size() - 1).timeSec;
+        totalDistance = dataPointList.get(dataPointList.size() - 1).distance;
 
         setRunTime(0);
 
@@ -64,5 +66,13 @@ class GhostDataManager extends DataManager {
 
     float getDistance() {
         return curDist;
+    }
+
+    int getTotalTime() {
+        return totalTime;
+    }
+
+    float getTotalDistance() {
+        return  totalDistance;
     }
 }

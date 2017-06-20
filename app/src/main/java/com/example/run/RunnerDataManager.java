@@ -50,6 +50,14 @@ class RunnerDataManager extends DataManager {
         return speed;
     }
 
+    int getTime() {
+        if (dataPointList.size() == 0) {
+            return -1;
+        } else {
+            return dataPointList.get(dataPointList.size() - 1).timeSec;
+        }
+    }
+
     float getDistance() {
         if (dataPointList.size() == 0) {
             return 0.0f;
