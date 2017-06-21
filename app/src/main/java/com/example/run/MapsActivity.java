@@ -99,9 +99,10 @@ public class MapsActivity extends FragmentActivity
     private int mRunTimeSec;
 
     private static final long TIMMER_INTERVAL = 1000;
-    private static final long TIMMER_MAX = 3600000;
+    private static final long TIMMER_MAX = 36000000;
     private CountDownTimer mCDTimer;
 
+    private boolean mHasGhost;
     // time s, latitude, longitude, distance to pre m (speed m/s), total distance m
     private RunnerDataManager mRunnerData;
     private GhostDataManager mGhostData;
@@ -130,6 +131,8 @@ public class MapsActivity extends FragmentActivity
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         mRunStatus = UNREADY;
+        mHasGhost = false;
+
         mRequestingLocationUpdates = true;
 
         timeTextView = (TextView) findViewById(R.id.time);
@@ -211,11 +214,15 @@ public class MapsActivity extends FragmentActivity
         mMap = googleMap;
 
         initMapAndLocation();
-        initInfo();
 
         Intent intent = getIntent();
         mGhostFilename = intent.getStringExtra(EXTRA_MESSAGE);
-        loadRunHistory(mGhostFilename);
+        if (!mGhostFilename.equals(HistoryActivity.NO_GHOST_FILENAME)) {
+            mHasGhost = true;
+            loadRunHistory(mGhostFilename);
+        }
+
+        initInfo();
     }
 
     @Override
@@ -274,10 +281,17 @@ public class MapsActivity extends FragmentActivity
     }
 
     @Override
-    public void onResume() {
+    protected void onResume() {
         super.onResume();
         if (mGoogleApiClient.isConnected() && !mRequestingLocationUpdates) {
             startLocationUpdates();
+        }
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (mRunStatus != RUNNING) {
+            super.onBackPressed();
         }
     }
 
@@ -338,15 +352,22 @@ public class MapsActivity extends FragmentActivity
     }
 
     private void initInfo() {
-        timeTextView.setText("Run time in sec");
-        distTextView.setText("Run distance in meter");
         latitudeTextView.setText("Latitude");
         longitudeTextView.setText("Longitude");
         speedTextView.setText("Speed in m/s");
+        if (mHasGhost) {
+            timeTextView.setText(secToTimeString(mGhostData.getTotalTime()));
+            distTextView.setText(String.valueOf(mGhostData.getTotalDistance()));
+            ghostTextView.setText("Distance to ghost in m/s");
+        } else {
+            timeTextView.setText("Run time in sec");
+            distTextView.setText("Run distance in meter");
+            ghostTextView.setText("Run without ghost");
+        }
     }
 
     private void updateDisplayInfo(float speed) {
-        timeTextView.setText(String.valueOf(mRunTimeSec));
+        timeTextView.setText(secToTimeString(mRunTimeSec));
         distTextView.setText(String.valueOf(mRunnerData.getDistance()));
         latitudeTextView.setText(String.valueOf(mLastKnownLocation.getLatitude()));
         longitudeTextView.setText(String.valueOf(mLastKnownLocation.getLongitude()));
@@ -385,13 +406,30 @@ public class MapsActivity extends FragmentActivity
         mPolyline = null;
     }
 
+    private static String secToTimeString(int second) {
+        int sec = second % 60;
+        int min = (second / 60) % 60;
+        int hour = second / 3600;
+
+        StringBuilder timeSB = new StringBuilder();
+        if (hour != 0) {
+            timeSB.append(String.valueOf(hour)).append(":");
+        }
+        timeSB.append(String.format("%02d", min)).append(":");
+        timeSB.append(String.format("%02d", sec));
+
+        return timeSB.toString();
+    }
+
     public void startRun(View view) {
         if ((mRunStatus == UNREADY || mRunStatus == FINISH) && mLastKnownLocation != null) {
             mRunStatus = READY;
             // TODO
             startButton.setText(R.string.start_button_text);
-            mGhostData.reset();
-            setGhostMarker(mGhostData.getLatLng());
+            if (mHasGhost) {
+                mGhostData.reset();
+                setGhostMarker(mGhostData.getLatLng());
+            }
             return;
         }
 
@@ -414,10 +452,12 @@ public class MapsActivity extends FragmentActivity
                     updateDisplayInfo(speed);
                     addToPolyline(mLastKnownLocation);
 
-                    mGhostData.setRunTime(mRunTimeSec);
-                    setGhostMarker(mGhostData.getLatLng());
-                    ghostTextView.setText(String.valueOf(
-                            mRunnerData.getDistance() - mGhostData.getDistance()));
+                    if (mHasGhost) {
+                        mGhostData.setRunTime(mRunTimeSec);
+                        setGhostMarker(mGhostData.getLatLng());
+                        ghostTextView.setText(String.valueOf(
+                                mRunnerData.getDistance() - mGhostData.getDistance()));
+                    }
                 }
 
                 public void onFinish() {
@@ -450,12 +490,6 @@ public class MapsActivity extends FragmentActivity
         }
     }
 
-    private void showResult(String filename) {
-        Intent intent = new Intent(this, DisplayRunResultActivity.class);
-        intent.putExtra(EXTRA_MESSAGE, filename);
-        startActivity(intent);
-    }
-
     private void moveCameraFitPolyline(List<LatLng> mPolylineVertex) {
         LatLngBounds.Builder builder = new LatLngBounds.Builder();
         for (LatLng latLng : mPolylineVertex) {
@@ -477,9 +511,6 @@ public class MapsActivity extends FragmentActivity
         Polyline gPolyline = mMap.addPolyline(polylineOpt);
         gPolyline.setPoints(historyLatLngList);
         moveCameraFitPolyline(historyLatLngList);
-
-        timeTextView.setText(String.valueOf(mGhostData.getTotalTime()));
-        distTextView.setText(String.valueOf(mGhostData.getTotalDistance()));
 
         setGhostMarker(mGhostData.getLatLng());
     }

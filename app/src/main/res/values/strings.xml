@@ -9,4 +9,5 @@
     <string name="ready_button_text">READY</string>
     <string name="start_button_text">START</string>
     <string name="end_button_text">END</string>
+    <string name="no_ghost_button_text">NO GHOST</string>
 </resources>
