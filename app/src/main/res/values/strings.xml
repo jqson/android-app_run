@@ -1,11 +1,13 @@
 <resources>
     <string name="app_name">Run</string>
     <string name="title_activity_maps">Run</string>
+    <string name="time_info">Run Time:</string>
     <string name="time_num">time</string>
+    <string name="distance_info">Distance:</string>
     <string name="distance_num">distance</string>
-    <string name="latitude_num">latitude</string>
-    <string name="longitude_num">longitude</string>
+    <string name="speed_info">Speed:</string>
     <string name="speed_num">speed</string>
+    <string name="ghost_gap_info">Ghost:</string>
     <string name="ready_button_text">READY</string>
     <string name="start_button_text">START</string>
     <string name="end_button_text">END</string>

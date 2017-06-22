@@ -73,6 +73,10 @@ class GhostDataManager extends DataManager {
     }
 
     float getTotalDistance() {
-        return  totalDistance;
+        return totalDistance;
+    }
+
+    float getAvgSpeed() {
+        return totalDistance / totalTime;
     }
 }

@@ -83,7 +83,7 @@ public class MapsActivity extends FragmentActivity
     private static final int POLYLINE_WIDTH_PX = 10;
 
     // information to be displayed
-    private TextView timeTextView, distTextView, latitudeTextView, longitudeTextView, speedTextView;
+    private TextView timeTextView, distTextView, speedTextView;
     private Button startButton;
 
     private TextView ghostTextView;
@@ -137,8 +137,6 @@ public class MapsActivity extends FragmentActivity
 
         timeTextView = (TextView) findViewById(R.id.time);
         distTextView = (TextView) findViewById(R.id.distance);
-        latitudeTextView = (TextView) findViewById(R.id.latitude);
-        longitudeTextView = (TextView) findViewById(R.id.longitude);
         speedTextView = (TextView) findViewById(R.id.speed);
 
         ghostTextView = (TextView) findViewById(R.id.ghost);
@@ -352,25 +350,22 @@ public class MapsActivity extends FragmentActivity
     }
 
     private void initInfo() {
-        latitudeTextView.setText("Latitude");
-        longitudeTextView.setText("Longitude");
-        speedTextView.setText("Speed in m/s");
         if (mHasGhost) {
             timeTextView.setText(secToTimeString(mGhostData.getTotalTime()));
             distTextView.setText(String.valueOf(mGhostData.getTotalDistance()));
-            ghostTextView.setText("Distance to ghost in m/s");
+            speedTextView.setText(String.valueOf(mGhostData.getAvgSpeed()));
+            ghostTextView.setText("Distance to ghost");
         } else {
-            timeTextView.setText("Run time in sec");
-            distTextView.setText("Run distance in meter");
-            ghostTextView.setText("Run without ghost");
+            timeTextView.setText("00:00");
+            distTextView.setText("0");
+            speedTextView.setText("0");
+            ghostTextView.setText("No Ghost");
         }
     }
 
     private void updateDisplayInfo(float speed) {
         timeTextView.setText(secToTimeString(mRunTimeSec));
         distTextView.setText(String.valueOf(mRunnerData.getDistance()));
-        latitudeTextView.setText(String.valueOf(mLastKnownLocation.getLatitude()));
-        longitudeTextView.setText(String.valueOf(mLastKnownLocation.getLongitude()));
         speedTextView.setText(String.valueOf(speed));
     }
 

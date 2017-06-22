@@ -55,7 +55,8 @@ public class HistoryActivity extends AppCompatActivity {
     protected  void onResume() {
         super.onResume();
         loadHistory();
-        mItemsAdapter.notifyDataSetChanged();
+        mItemsAdapter.clear();
+        mItemsAdapter.addAll(mDisplayList);
     }
 
     private boolean historyExistence() {
