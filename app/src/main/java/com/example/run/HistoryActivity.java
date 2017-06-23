@@ -22,8 +22,12 @@ public class HistoryActivity extends AppCompatActivity {
 
     private static final String DATE_TIME_PATTERN = "EEE, d MMM yy h:mm a";
 
+    private HistoryDbHelper mDbHelper;
+    private List<RunHistory> mHistoryList;
+
     private ListView mHistoryListView;
-    private List<String> mHistoryList;
+
+    private List<String> mHistoryLineList;
     private List<String> mDisplayList;
     private List<String> mFilenameList;
 
@@ -36,19 +40,12 @@ public class HistoryActivity extends AppCompatActivity {
 
         // TODO immigrate to database
 
+        mDbHelper = new HistoryDbHelper(this);
+        mHistoryListView = (ListView) findViewById(R.id.history_list);
+
         loadHistory();
 
-        mItemsAdapter = new ArrayAdapter<String>(this, R.layout.history_list_item, mDisplayList);
-        mHistoryListView = (ListView) findViewById(R.id.history_list);
-        mHistoryListView.setAdapter(mItemsAdapter);
-
-        mHistoryListView.setOnItemClickListener(new OnItemClickListener() {
-            public void onItemClick(AdapterView<?> adapter, View v, int position, long id) {
-                String filename = mFilenameList.get((int) id);
-                //showResult(filename);
-                runWithGhost(filename);
-            }
-        });
+        initListView();
     }
 
     @Override
@@ -57,6 +54,12 @@ public class HistoryActivity extends AppCompatActivity {
         loadHistory();
         mItemsAdapter.clear();
         mItemsAdapter.addAll(mDisplayList);
+    }
+
+    @Override
+    protected void onDestroy() {
+        mDbHelper.close();
+        super.onDestroy();
     }
 
     private boolean historyExistence() {
@@ -72,18 +75,35 @@ public class HistoryActivity extends AppCompatActivity {
         }
 
         String fileListStr = DataManager.readFile(HISTORY_FILENAME, this);
-        mHistoryList = Arrays.asList(fileListStr.split("\n"));
+        mHistoryLineList = Arrays.asList(fileListStr.split("\n"));
 
         // generate history filename list and text display list
         SimpleDateFormat sdf = new SimpleDateFormat(DATE_TIME_PATTERN);
 
         mFilenameList = new ArrayList<>();
         mDisplayList = new ArrayList<>();
-        for (int i = mHistoryList.size() - 1; i > 0; i--) {
-            String[] fileInfoArray = mHistoryList.get(i).split(",");
+        for (int i = mHistoryLineList.size() - 1; i > 0; i--) {
+            String[] fileInfoArray = mHistoryLineList.get(i).split(",");
             mFilenameList.add(fileInfoArray[0]);
             mDisplayList.add(sdf.format(new Date(Long.valueOf(fileInfoArray[1]))).toString());
         }
+
+        // database
+        mHistoryList = mDbHelper.getAllHistory();
+    }
+
+    private void initListView() {
+        // TODO adapt history list
+
+        mItemsAdapter = new ArrayAdapter<>(this, R.layout.history_list_item, mDisplayList);
+        mHistoryListView.setAdapter(mItemsAdapter);
+        mHistoryListView.setOnItemClickListener(new OnItemClickListener() {
+            public void onItemClick(AdapterView<?> adapter, View v, int position, long id) {
+                String filename = mFilenameList.get((int) id);
+                //showResult(filename);
+                runWithGhost(filename);
+            }
+        });
     }
 
     private void showResult(String filename) {
