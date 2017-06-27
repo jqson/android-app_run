@@ -351,8 +351,8 @@ public class MapsActivity extends FragmentActivity
 
     private void initInfo() {
         if (mHasGhost) {
-            timeTextView.setText(secToTimeString(mGhostData.getTotalTime()));
-            distTextView.setText(String.valueOf(mGhostData.getTotalDistance()));
+            timeTextView.setText(Util.secToTimeString(mGhostData.getTotalTime()));
+            distTextView.setText(Util.meterToString(mGhostData.getTotalDistance()));
             speedTextView.setText(String.valueOf(mGhostData.getAvgSpeed()));
             ghostTextView.setText("Distance to ghost");
         } else {
@@ -364,8 +364,8 @@ public class MapsActivity extends FragmentActivity
     }
 
     private void updateDisplayInfo(float speed) {
-        timeTextView.setText(secToTimeString(mRunTimeSec));
-        distTextView.setText(String.valueOf(mRunnerData.getDistance()));
+        timeTextView.setText(Util.secToTimeString(mRunTimeSec));
+        distTextView.setText(Util.meterToString(mRunnerData.getDistance()));
         speedTextView.setText(String.valueOf(speed));
     }
 
@@ -399,21 +399,6 @@ public class MapsActivity extends FragmentActivity
     private void clearPolyline() {
         mPolyline.remove();
         mPolyline = null;
-    }
-
-    private static String secToTimeString(int second) {
-        int sec = second % 60;
-        int min = (second / 60) % 60;
-        int hour = second / 3600;
-
-        StringBuilder timeSB = new StringBuilder();
-        if (hour != 0) {
-            timeSB.append(String.valueOf(hour)).append(":");
-        }
-        timeSB.append(String.format("%02d", min)).append(":");
-        timeSB.append(String.format("%02d", sec));
-
-        return timeSB.toString();
     }
 
     public void startRun(View view) {
@@ -476,7 +461,9 @@ public class MapsActivity extends FragmentActivity
             moveCameraFitPolyline(mPolylineVertex);
 
             mRunnerData.saveToFile(mRunnerFilename);
+
             addToHistoryFile();
+            addHistoryToDb();
 
             //showResult(filename);
 
@@ -519,7 +506,18 @@ public class MapsActivity extends FragmentActivity
                 .icon(BitmapDescriptorFactory.defaultMarker(GHOST_MARKER_COLOR)));
     }
 
-    // TODO immigrate to database
+    private void addHistoryToDb() {
+        RunHistory newHistory = new RunHistory(
+                mStartTime.getTime(),
+                mRunnerData.getTime(),
+                mRunnerData.getDistance(),
+                mRunnerFilename);
+
+        HistoryDbHelper dbHelper = new HistoryDbHelper(this);
+
+        dbHelper.addHistory(newHistory);
+    }
+
     private void addToHistoryFile() {
         // "filename,dateMs,time,dist\n";
         String newFileInfo = mRunnerFilename + "," +

@@ -41,6 +41,13 @@ class RunHistory {
         this.filename = filename;
     }
 
+    public RunHistory(long dateMs, int time, float distance, String filename) {
+        this.date = new Date(dateMs);
+        this.time = time;
+        this.distance = distance;
+        this.filename = filename;
+    }
+
     public void setId(int id) {
         this.id = id;
     }

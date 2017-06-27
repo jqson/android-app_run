@@ -8,6 +8,7 @@ import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
+import android.widget.TextView;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
@@ -20,18 +21,12 @@ public class HistoryActivity extends AppCompatActivity {
     static final String HISTORY_FILENAME = "history.run";
     static final String NO_GHOST_FILENAME = "NO_GHOST";
 
-    private static final String DATE_TIME_PATTERN = "EEE, d MMM yy h:mm a";
-
     private HistoryDbHelper mDbHelper;
     private List<RunHistory> mHistoryList;
 
     private ListView mHistoryListView;
 
-    private List<String> mHistoryLineList;
-    private List<String> mDisplayList;
-    private List<String> mFilenameList;
-
-    private  ArrayAdapter<String> mItemsAdapter;
+    private  HistoryAdapter mItemsAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,9 +36,13 @@ public class HistoryActivity extends AppCompatActivity {
         // TODO immigrate to database
 
         mDbHelper = new HistoryDbHelper(this);
+
+        //mDbHelper.clearHistory();
+        //moveFileDataToDb();
+
         mHistoryListView = (ListView) findViewById(R.id.history_list);
 
-        loadHistory();
+        mHistoryList = mDbHelper.getAllHistory();
 
         initListView();
     }
@@ -51,9 +50,9 @@ public class HistoryActivity extends AppCompatActivity {
     @Override
     protected  void onResume() {
         super.onResume();
-        loadHistory();
+        mHistoryList = mDbHelper.getAllHistory();
         mItemsAdapter.clear();
-        mItemsAdapter.addAll(mDisplayList);
+        mItemsAdapter.addAll(mHistoryList);
     }
 
     @Override
@@ -67,7 +66,8 @@ public class HistoryActivity extends AppCompatActivity {
         return file.exists();
     }
 
-    private void loadHistory() {
+
+    private void moveFileDataToDb() {
         if (!historyExistence()) {
             // Create history file
             String fileHead = "filename,dateMs,time,dist\n";
@@ -75,35 +75,31 @@ public class HistoryActivity extends AppCompatActivity {
         }
 
         String fileListStr = DataManager.readFile(HISTORY_FILENAME, this);
-        mHistoryLineList = Arrays.asList(fileListStr.split("\n"));
+        List<String> historyLineList = Arrays.asList(fileListStr.split("\n"));
 
-        // generate history filename list and text display list
-        SimpleDateFormat sdf = new SimpleDateFormat(DATE_TIME_PATTERN);
-
-        mFilenameList = new ArrayList<>();
-        mDisplayList = new ArrayList<>();
-        for (int i = mHistoryLineList.size() - 1; i > 0; i--) {
-            String[] fileInfoArray = mHistoryLineList.get(i).split(",");
-            mFilenameList.add(fileInfoArray[0]);
-            mDisplayList.add(sdf.format(new Date(Long.valueOf(fileInfoArray[1]))).toString());
+        for (int i = 1; i < historyLineList.size(); i++) {
+            String[] fileInfoArray = historyLineList.get(i).split(",");
+            RunHistory newHistory = new RunHistory(
+                    Long.valueOf(fileInfoArray[1]),
+                    Integer.valueOf(fileInfoArray[2]),
+                    Float.valueOf(fileInfoArray[3]),
+                    String.valueOf(fileInfoArray[0]));
+            mDbHelper.addHistory(newHistory);
         }
-
-        // database
-        mHistoryList = mDbHelper.getAllHistory();
     }
 
     private void initListView() {
-        // TODO adapt history list
-
-        mItemsAdapter = new ArrayAdapter<>(this, R.layout.history_list_item, mDisplayList);
+        mItemsAdapter = new HistoryAdapter(this, mHistoryList);
         mHistoryListView.setAdapter(mItemsAdapter);
         mHistoryListView.setOnItemClickListener(new OnItemClickListener() {
             public void onItemClick(AdapterView<?> adapter, View v, int position, long id) {
-                String filename = mFilenameList.get((int) id);
+                String filename = mHistoryList.get((int) id).getFilename();
                 //showResult(filename);
                 runWithGhost(filename);
             }
         });
+
+        mHistoryListView.setEmptyView((TextView)findViewById(R.id.no_history));
     }
 
     private void showResult(String filename) {
