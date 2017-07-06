@@ -40,24 +40,39 @@ class GhostDataManager extends DataManager {
     }
 
     void setRunTime(int timeSec) {
-        curTime = timeSec;
-        if (curTime >= totalTime) {
+        if (timeSec >= totalTime) {
             // TODO ghost done
             return;
         }
 
-        while (curTime > dataPointList.get(curDataPointIdx).timeSec) {
+        // only work with incremental time
+        while (timeSec > dataPointList.get(curDataPointIdx).timeSec) {
             curDataPointIdx++;
         }
 
-        if (curTime == dataPointList.get(curDataPointIdx).timeSec) {
+        if (timeSec == dataPointList.get(curDataPointIdx).timeSec) {
             curLatLng = new LatLng(
                     dataPointList.get(curDataPointIdx).latitude,
                     dataPointList.get(curDataPointIdx).longitude);
             curDist = dataPointList.get(curDataPointIdx).distance;
         } else {
-            // TODO interpolate ghost info
+            int timeToPre = timeSec - curTime;
+            int timeToNext = dataPointList.get(curDataPointIdx).timeSec - timeSec;
+
+            double newLat = (curLatLng.latitude * timeToNext
+                    + dataPointList.get(curDataPointIdx).latitude * timeToPre)
+                    /(double)(timeToPre + timeToNext);
+            double newLng = (curLatLng.longitude * timeToNext
+                    + dataPointList.get(curDataPointIdx).longitude * timeToPre)
+                    /(double)(timeToPre + timeToNext);
+
+            curLatLng = new LatLng(newLat, newLng);
+            curDist = (curDist * timeToNext
+                    + dataPointList.get(curDataPointIdx).distance * timeToPre)
+                    /(float) (timeToPre + timeToNext);
         }
+
+        curTime = timeSec;
     }
 
     LatLng getLatLng() {

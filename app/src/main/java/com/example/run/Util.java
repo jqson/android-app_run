@@ -45,6 +45,6 @@ class Util {
 
     static String meterToString(float meter) {
         DecimalFormat df = new DecimalFormat(METER_PATTERN);
-        return df.format(meter);
+        return df.format(meter) + " m";
     }
 }

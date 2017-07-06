@@ -98,8 +98,8 @@ public class MapsActivity extends FragmentActivity
     private Date mStartTime;
     private int mRunTimeSec;
 
-    private static final long TIMMER_INTERVAL = 1000;
-    private static final long TIMMER_MAX = 36000000;
+    private static final long TIMER_INTERVAL = 1000;
+    private static final long TIMER_MAX = 36000000;
     private CountDownTimer mCDTimer;
 
     private boolean mHasGhost;
@@ -424,9 +424,9 @@ public class MapsActivity extends FragmentActivity
 
             mRunTimeSec = 0;
 
-            mCDTimer = new CountDownTimer(TIMMER_MAX, TIMMER_INTERVAL) {
+            mCDTimer = new CountDownTimer(TIMER_MAX, TIMER_INTERVAL) {
                 public void onTick(long millisUntilFinished) {
-                    mRunTimeSec = (int) ((TIMMER_MAX - millisUntilFinished) / 1000);
+                    mRunTimeSec = (int) ((TIMER_MAX - millisUntilFinished) / 1000);
 
                     float speed = mRunnerData.addPoint(mRunTimeSec, mLastKnownLocation);
                     updateDisplayInfo(speed);
@@ -457,8 +457,8 @@ public class MapsActivity extends FragmentActivity
 
             mRunStatus = FINISH;
 
-            // TODO show final polyline based on mRunData
-            moveCameraFitPolyline(mPolylineVertex);
+            mPolyline.setPoints(mRunnerData.getLatLngList());
+            moveCameraFitPolyline(mRunnerData.getLatLngList());
 
             mRunnerData.saveToFile(mRunnerFilename);
 
