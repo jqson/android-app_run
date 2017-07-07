@@ -353,12 +353,12 @@ public class MapsActivity extends FragmentActivity
         if (mHasGhost) {
             timeTextView.setText(Util.secToTimeString(mGhostData.getTotalTime()));
             distTextView.setText(Util.meterToString(mGhostData.getTotalDistance()));
-            speedTextView.setText(String.valueOf(mGhostData.getAvgSpeed()));
+            speedTextView.setText(Util.speedToString(mGhostData.getAvgSpeed()));
             ghostTextView.setText("Distance to ghost");
         } else {
-            timeTextView.setText("00:00");
-            distTextView.setText("0");
-            speedTextView.setText("0");
+            timeTextView.setText(Util.secToTimeString(0));
+            distTextView.setText(Util.meterToString(0.0f));
+            speedTextView.setText(Util.speedToString(0.0f));
             ghostTextView.setText("No Ghost");
         }
     }
@@ -366,7 +366,7 @@ public class MapsActivity extends FragmentActivity
     private void updateDisplayInfo(float speed) {
         timeTextView.setText(Util.secToTimeString(mRunTimeSec));
         distTextView.setText(Util.meterToString(mRunnerData.getDistance()));
-        speedTextView.setText(String.valueOf(speed));
+        speedTextView.setText(Util.speedToString(speed));
     }
 
     private void centerMapOnCurLocation() {
@@ -435,7 +435,8 @@ public class MapsActivity extends FragmentActivity
                     if (mHasGhost) {
                         mGhostData.setRunTime(mRunTimeSec);
                         setGhostMarker(mGhostData.getLatLng());
-                        ghostTextView.setText(String.valueOf(
+                        // TODO: calibrate ghost distance with current distance
+                        ghostTextView.setText(Util.meterToString(
                                 mRunnerData.getDistance() - mGhostData.getDistance()));
                     }
                 }

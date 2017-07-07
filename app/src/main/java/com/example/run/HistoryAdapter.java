@@ -35,10 +35,12 @@ class HistoryAdapter extends ArrayAdapter<RunHistory> {
         TextView runDate = (TextView) convertView.findViewById(R.id.history_date);
         TextView runTime = (TextView) convertView.findViewById(R.id.history_time);
         TextView runDistance = (TextView) convertView.findViewById(R.id.history_distance);
+        TextView runSpeed = (TextView) convertView.findViewById(R.id.history_speed);
         // Populate the data into the template view using the data object
         runDate.setText(Util.dateToString(history.getDate()));
         runTime.setText(Util.secToTimeString(history.getTime()));
         runDistance.setText(Util.meterToString(history.getDistance()));
+        runSpeed.setText(Util.speedToString(history.getDistance(), history.getTime()));
         // Return the completed view to render on screen
         return convertView;
     }
