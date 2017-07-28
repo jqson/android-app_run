@@ -5,11 +5,36 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context="com.example.run.HistoryActivity">
+
+    <LinearLayout
+        android:id="@+id/history_buttons"
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true">
+        <Button
+            android:id="@+id/show_route_button"
+            android:layout_width="0sp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/show_route_button_text"
+            android:onClick="showRoute" />
+
+        <Button
+            android:id="@+id/show_all_button"
+            android:layout_width="0sp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/show_all_button_text"
+            android:onClick="showAllRun" />
+    </LinearLayout>
+
     <ListView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:id="@+id/history_list"
-        android:layout_above="@+id/buttons"
+        android:layout_above="@+id/control_buttons"
+        android:layout_below="@+id/history_buttons"
         android:dividerHeight="10sp" />
 
     <TextView
@@ -18,14 +43,15 @@
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
         android:layout_alignParentTop="true"
-        android:layout_above="@+id/buttons"
+        android:layout_above="@+id/control_buttons"
+        android:layout_below="@+id/history_buttons"
         android:gravity="center"
         android:textAlignment="center"
-        android:text="@string/no_history"
+        android:text="@string/no_history_text"
         android:textSize="24sp"/>
 
     <LinearLayout
-        android:id="@+id/buttons"
+        android:id="@+id/control_buttons"
         android:orientation="horizontal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -35,8 +61,8 @@
             android:layout_width="0sp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="@string/no_ghost_button_text"
-            android:onClick="runWithoutGhost" />
+            android:text="@string/new_route_button_text"
+            android:onClick="runNewRoute" />
     </LinearLayout>
 
 

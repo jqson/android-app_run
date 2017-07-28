@@ -8,6 +8,7 @@ import android.location.Location;
  */
 
 class RunnerDataManager extends DataManager {
+
     // speed m/s less than this will be treat as GPS error
     private static final float SPEED_THRESHOLD = 0.2f;
 

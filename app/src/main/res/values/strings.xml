@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">Run</string>
     <string name="title_activity_maps">Run</string>
-    <string name="no_history">No Ghost Found</string>
+    <string name="no_history_text">No Record Found</string>
     <string name="time_info">Run Time:</string>
     <string name="time_num">time</string>
     <string name="distance_info">Distance:</string>
@@ -13,4 +13,7 @@
     <string name="start_button_text">START</string>
     <string name="end_button_text">END</string>
     <string name="no_ghost_button_text">Start Without Ghost</string>
+    <string name="new_route_button_text">New Route</string>
+    <string name="show_route_button_text">Routes</string>
+    <string name="show_all_button_text">All Histroy</string>
 </resources>

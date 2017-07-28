@@ -17,8 +17,9 @@ import java.util.List;
  * Created by Qson on 6/26/2017.
  */
 
-class HistoryAdapter extends ArrayAdapter<RunHistory> {
-    public HistoryAdapter(Context context, List<RunHistory> historyList) {
+class RunHistoryAdapter extends ArrayAdapter<RunHistory> {
+
+    RunHistoryAdapter(Context context, List<RunHistory> historyList) {
         super(context, 0, historyList);
     }
 
@@ -26,17 +27,22 @@ class HistoryAdapter extends ArrayAdapter<RunHistory> {
     public View getView(int position, View convertView, ViewGroup parent) {
         // Get the data item for this position
         RunHistory history = getItem(position);
+
         // Check if an existing view is being reused, otherwise inflate the view
         if (convertView == null) {
             convertView = LayoutInflater.from(getContext())
                     .inflate(R.layout.history_list_item, parent, false);
         }
+
         // Lookup view for data population
+        TextView runId = (TextView) convertView.findViewById(R.id.history_id);
         TextView runDate = (TextView) convertView.findViewById(R.id.history_date);
         TextView runTime = (TextView) convertView.findViewById(R.id.history_time);
         TextView runDistance = (TextView) convertView.findViewById(R.id.history_distance);
         TextView runSpeed = (TextView) convertView.findViewById(R.id.history_speed);
+
         // Populate the data into the template view using the data object
+        runId.setText(String.valueOf(history.getId()));
         runDate.setText(Util.dateToString(history.getDate()));
         runTime.setText(Util.secToTimeString(history.getTime()));
         runDistance.setText(Util.meterToString(history.getDistance()));

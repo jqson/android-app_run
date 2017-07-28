@@ -16,8 +16,8 @@ public class DisplayRunResultActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_display_run_result);
 
-        Intent intent = getIntent();
-        String filename = intent.getStringExtra(MapsActivity.EXTRA_MESSAGE);
+        Bundle extras = getIntent().getExtras();
+        String filename  = extras.getString(MapsActivity.EXTRA_MESSAGE_FILENAME);
 
         String resultText = DataManager.readFile(filename, this);
 

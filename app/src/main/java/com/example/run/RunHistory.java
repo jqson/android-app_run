@@ -84,7 +84,7 @@ class RunHistory {
         return date;
     }
 
-    public long getLongDate() {
+    public long getDateLong() {
         return date.getTime();
     }
 

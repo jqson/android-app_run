@@ -44,7 +44,9 @@ public class MapsActivity extends FragmentActivity
                 GoogleApiClient.ConnectionCallbacks,
                 GoogleApiClient.OnConnectionFailedListener {
 
-    public static final String EXTRA_MESSAGE = "com.example.run.MESSAGE";
+    public static final String EXTRA_MESSAGE_ROUTEID = "com.example.run.MESSAGE.ROUTEID";
+    public static final String EXTRA_MESSAGE_FILENAME = "com.example.run.MESSAGE.FILENAME";
+
     private static final String TAG = MapsActivity.class.getSimpleName();
 
     // Keys for storing activity state.
@@ -109,6 +111,9 @@ public class MapsActivity extends FragmentActivity
 
     private String mRunnerFilename;
     private String mGhostFilename;
+
+    private long mRouteId;
+    private static final String mRouteNamePrefix = "Route"; // TODO allow user change route name
 
     private Marker mRunnerMarker;
     private Marker mGhostMarker;
@@ -213,10 +218,12 @@ public class MapsActivity extends FragmentActivity
 
         initMapAndLocation();
 
-        Intent intent = getIntent();
-        mGhostFilename = intent.getStringExtra(EXTRA_MESSAGE);
-        if (!mGhostFilename.equals(HistoryActivity.NO_GHOST_FILENAME)) {
+        Bundle extras = getIntent().getExtras();
+        mRouteId = extras.getLong(EXTRA_MESSAGE_ROUTEID, HistoryActivity.NEW_ROUTE_FLAG);
+
+        if (mRouteId != HistoryActivity.NEW_ROUTE_FLAG) {
             mHasGhost = true;
+            mGhostFilename = extras.getString(EXTRA_MESSAGE_FILENAME);
             loadRunHistory(mGhostFilename);
         }
 
@@ -514,9 +521,15 @@ public class MapsActivity extends FragmentActivity
                 mRunnerData.getDistance(),
                 mRunnerFilename);
 
-        HistoryDbHelper dbHelper = new HistoryDbHelper(this);
+        DatabaseHelper dbHelper = new DatabaseHelper(this);
 
-        dbHelper.addHistory(newHistory);
+        if (mRouteId == HistoryActivity.NO_ROUTE_FLAG) {
+            dbHelper.addHistory(newHistory);
+        } else if (mRouteId == HistoryActivity.NEW_ROUTE_FLAG) {
+            dbHelper.appendRunToRoute(newHistory, mRouteId);
+        } else {
+            dbHelper.newRoute(newHistory, mRouteNamePrefix);
+        }
     }
 
     private void addToHistoryFile() {

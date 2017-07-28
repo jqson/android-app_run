@@ -20,6 +20,7 @@ import java.util.List;
  */
 
 class DataManager {
+
     class DataPoint {
         int timeSec;
         double latitude;

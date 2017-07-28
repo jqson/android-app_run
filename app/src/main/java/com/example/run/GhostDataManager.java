@@ -9,6 +9,7 @@ import com.google.android.gms.maps.model.LatLng;
  */
 
 class GhostDataManager extends DataManager {
+
     private int totalTime;
     private float totalDistance;
 

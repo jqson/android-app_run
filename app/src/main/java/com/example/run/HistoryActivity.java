@@ -6,53 +6,59 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
-import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.ListView;
-import android.widget.TextView;
 
 import java.io.File;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 
 public class HistoryActivity extends AppCompatActivity {
-    static final String HISTORY_FILENAME = "history.run";
-    static final String NO_GHOST_FILENAME = "NO_GHOST";
 
-    private HistoryDbHelper mDbHelper;
-    private List<RunHistory> mHistoryList;
+    static final String HISTORY_FILENAME = "history.run";
+    static final long NEW_ROUTE_FLAG = -1;
+    static final long NO_ROUTE_FLAG = -2;
+
+    private boolean mShowRunHistory = false;
+
+    private DatabaseHelper mDbHelper;
+    private List<RunHistory> mRunList;
+    private List<Route> mRouteList;
 
     private ListView mHistoryListView;
 
-    private  HistoryAdapter mItemsAdapter;
+    private RunHistoryAdapter mRunItemsAdapter;
+    private RouteAdapter mRouteItemsAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_history);
 
-        // TODO immigrate to database
-
-        mDbHelper = new HistoryDbHelper(this);
-
-        //mDbHelper.clearHistory();
-        //moveFileDataToDb();
+        mDbHelper = new DatabaseHelper(this);
 
         mHistoryListView = (ListView) findViewById(R.id.history_list);
 
-        mHistoryList = mDbHelper.getAllHistory();
-
-        initListView();
+        if (mShowRunHistory) {
+            initRunListView();
+        } else {
+            initRouteListView();
+        }
     }
 
     @Override
     protected  void onResume() {
         super.onResume();
-        mHistoryList = mDbHelper.getAllHistory();
-        mItemsAdapter.clear();
-        mItemsAdapter.addAll(mHistoryList);
+
+        if (mShowRunHistory) {
+            mRunList = mDbHelper.getAllHistory();
+            mRunItemsAdapter.clear();
+            mRunItemsAdapter.addAll(mRunList);
+        } else {
+            mRouteList = mDbHelper.getAllRoute();
+            mRouteItemsAdapter.clear();
+            mRouteItemsAdapter.addAll(mRouteList);
+        }
     }
 
     @Override
@@ -88,33 +94,73 @@ public class HistoryActivity extends AppCompatActivity {
         }
     }
 
-    private void initListView() {
-        mItemsAdapter = new HistoryAdapter(this, mHistoryList);
-        mHistoryListView.setAdapter(mItemsAdapter);
+    private void initRunListView() {
+        mRunList = mDbHelper.getAllHistory();
+        mRunItemsAdapter = new RunHistoryAdapter(this, mRunList);
+        mHistoryListView.setAdapter(mRunItemsAdapter);
         mHistoryListView.setOnItemClickListener(new OnItemClickListener() {
             public void onItemClick(AdapterView<?> adapter, View v, int position, long id) {
-                String filename = mHistoryList.get((int) id).getFilename();
-                //showResult(filename);
-                runWithGhost(filename);
+                long routeId = mDbHelper.getRouteId(mRunList.get((int) id).getId(), NO_ROUTE_FLAG);
+                runOnRoute(routeId, mRunList.get((int) id).getFilename());
             }
         });
 
-        mHistoryListView.setEmptyView((TextView)findViewById(R.id.no_history));
+        mHistoryListView.setEmptyView(findViewById(R.id.no_history));
     }
 
-    private void showResult(String filename) {
-        Intent intent = new Intent(this, DisplayRunResultActivity.class);
-        intent.putExtra(MapsActivity.EXTRA_MESSAGE, filename);
-        startActivity(intent);
+    private void initRouteListView() {
+        mRouteList = mDbHelper.getAllRoute();
+        mRouteItemsAdapter = new RouteAdapter(this, mRouteList);
+        mHistoryListView.setAdapter(mRouteItemsAdapter);
+        mHistoryListView.setOnItemClickListener(new OnItemClickListener() {
+            public void onItemClick(AdapterView<?> adapter, View v, int position, long id) {
+                runOnRoute(mRouteList.get((int) id).getId(),
+                        mRouteList.get((int) id).getFilename());
+            }
+        });
+
+        mHistoryListView.setEmptyView(findViewById(R.id.no_history));
     }
 
-    private void runWithGhost(String filename) {
+    private void runOnRoute(long routeId, String filename) {
         Intent intent = new Intent(this, MapsActivity.class);
-        intent.putExtra(MapsActivity.EXTRA_MESSAGE, filename);
+        Bundle extras = new Bundle();
+        extras.putLong(MapsActivity.EXTRA_MESSAGE_ROUTEID, routeId);
+        extras.putString(MapsActivity.EXTRA_MESSAGE_FILENAME, filename);
+        intent.putExtras(extras);
         startActivity(intent);
     }
 
-    public void runWithoutGhost(View view) {
-        runWithGhost(NO_GHOST_FILENAME);
+    public void runNewRoute(View view) {
+        runOnRoute(NEW_ROUTE_FLAG, "");
+    }
+
+    public void showRoute(View view) {
+        if (mShowRunHistory) {
+            initRouteListView();
+            mShowRunHistory = false;
+        }
+    }
+
+    public void showAllRun(View view) {
+        if (!mShowRunHistory) {
+            initRunListView();
+            mShowRunHistory = true;
+        }
+    }
+
+    void updateDatabase() {
+        //mDbHelper.clearTables();
+        //moveFileDataToDb();
+
+        //mDbHelper.tempClear();
+
+        /*
+        long[] id = {13};
+        mDbHelper.newRoute(mDbHelper.getHistory(id[0]), "Route");
+        for (int i = 1; i < id.length; i++) {
+            mDbHelper.appendRunToRoute(mDbHelper.getHistory(id[i]), 3);
+        }
+        */
     }
 }

@@ -10,12 +10,14 @@ import java.util.Date;
  */
 
 class Util {
+
     private static final String DATE_TIME_PATTERN = "EEE, d MMM yy h:mm a";
     private static final String METER_PATTERN = "#.#";
     private static final String METER_POSTFIX = " m";
     private static final String KMPH_PATTERN = "#.##";
     private static final String KMPH_POSTFIX = " km/h";
     private static final float MPS_TO_KMPH = 3.6f;
+    private static final String RUN_COUNT_POSTFIX = "-times";
 
     static String secToTimeString(int second) {
         int sec = second % 60;
@@ -60,5 +62,9 @@ class Util {
     static String speedToString(float distance, int timeSec) {
         DecimalFormat df = new DecimalFormat(KMPH_PATTERN);
         return df.format(distance / timeSec * MPS_TO_KMPH) + KMPH_POSTFIX;
+    }
+
+    static String runCountToString(int count) {
+        return String.valueOf(count) + RUN_COUNT_POSTFIX;
     }
 }
