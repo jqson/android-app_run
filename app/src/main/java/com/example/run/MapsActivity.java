@@ -526,9 +526,9 @@ public class MapsActivity extends FragmentActivity
         if (mRouteId == HistoryActivity.NO_ROUTE_FLAG) {
             dbHelper.addHistory(newHistory);
         } else if (mRouteId == HistoryActivity.NEW_ROUTE_FLAG) {
-            dbHelper.appendRunToRoute(newHistory, mRouteId);
-        } else {
             dbHelper.newRoute(newHistory, mRouteNamePrefix);
+        } else {
+            dbHelper.appendRunToRoute(newHistory, mRouteId);
         }
     }
 
